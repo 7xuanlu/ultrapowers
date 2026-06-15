@@ -1,0 +1,16 @@
+{
+  "name": "ultrapowers",
+  "owner": {
+    "name": "Qi-Xuan Lu",
+    "url": "https://github.com/7xuanlu"
+  },
+  "plugins": [
+    {
+      "name": "ultrapowers",
+      "source": "./",
+      "description": "Unattended SDD/TDD build harness — strict TDD, two-stage fail-closed review, mechanical re-witness-RED. Complements superpowers; does not replace it.",
+      "license": "MIT",
+      "keywords": ["sdd", "tdd", "workflow", "unattended", "code-review", "re-witness-red", "superpowers"]
+    }
+  ]
+}

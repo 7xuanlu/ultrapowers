@@ -127,6 +127,11 @@ coordinator at that point is still ~188K (bounded; never walls).
 /plugin marketplace add 7xuanlu/claude-plugins
 /plugin install ultrapowers@7xuanlu
 ```
+Or install this repo directly (it is its own single-plugin marketplace):
+```
+/plugin marketplace add 7xuanlu/ultrapowers
+/plugin install ultrapowers@ultrapowers
+```
 Start a new session so the SessionStart hook runs — it symlinks the engine into
 `~/.claude/workflows/ultrapowers-development.js`. Then:
 ```
@@ -134,6 +139,23 @@ Start a new session so the SessionStart hook runs — it symlinks the engine int
 ```
 If the command does not resolve by name in a freshly-installed session, it falls back to
 dispatching the engine by `scriptPath` automatically (see the command's dispatch fallback).
+
+**Requirements:** Claude Code with the Workflow tool, and Node (the engine is checked on Node 20;
+newer is fine). The default implementer (`claude`) needs no external CLI. The optional `codex` /
+`gemini` implementers require those CLIs installed plus a sandbox carve-out — see **Safety** below.
+
+## Safety — it runs code unattended
+
+ultrapowers **writes files, runs your `verifyCmd`, and makes git commits** in the target repo
+across many disposable subagents, with the human only at plan-approval and critical-review gates.
+Before you run it, read **[`SECURITY.md`](./SECURITY.md)** — it is the threat model. In short:
+
+- **Run it only on code and in a repo you trust**, in an isolated worktree/branch (the command
+  creates one if you're on `main`). Review the branch before merging.
+- **`verifyCmd` executes with your permissions** — never point it at untrusted scripts.
+- **External implementers (`codex`/`gemini`) run unsandboxed** and need an explicit allow-list +
+  sandbox carve-out. The default `claude` implementer does not. Details and rationale in
+  [`SECURITY.md`](./SECURITY.md).
 
 ## Layout
 
