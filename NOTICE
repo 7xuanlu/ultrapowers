@@ -1,0 +1,26 @@
+ultrapowers
+Copyright (c) 2026 Qi-Xuan Lu (@7xuanlu)
+
+This product includes software developed as part of Superpowers
+(https://github.com/obra/superpowers), Copyright (c) 2025 Jesse Vincent,
+licensed under the MIT License. The full Superpowers license text is reproduced
+in the file LICENSE-superpowers.
+
+Specifically, ultrapowers embeds the following text VERBATIM from Superpowers
+(version 5.1.0), used to give the build harness exact behavioral parity with the
+Superpowers skills it descends from:
+
+  - workflow/ultrapowers-development.js : the embedded `TDD_SKILL` string is the
+    verbatim content of superpowers:test-driven-development/SKILL.md
+  - workflow/ultrapowers-development.js : the embedded `SDD_GUIDANCE` string is
+    sourced verbatim from superpowers:subagent-driven-development/implementer-prompt.md
+  - workflow/ultrapowers-development.js : the spec-compliance reviewer prompt is
+    sourced from superpowers:subagent-driven-development/spec-reviewer-prompt.md
+  - workflow/ultrapowers-development.js : the code-quality reviewer prompt is
+    sourced from superpowers:subagent-driven-development/code-quality-reviewer-prompt.md
+
+The MIT License requires the above copyright notice and the permission notice
+(LICENSE-superpowers) to be included in all copies or substantial portions of the
+Software; this NOTICE and LICENSE-superpowers satisfy that requirement.
+
+With thanks to Jesse Vincent and the Superpowers project, on which this work stands.

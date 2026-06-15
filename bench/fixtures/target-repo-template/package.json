@@ -1,0 +1,1 @@
+{ "name": "bench-target", "type": "module", "scripts": { "test": "node --test" } }

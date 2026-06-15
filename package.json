@@ -1,0 +1,12 @@
+{
+  "name": "ultrapowers",
+  "version": "0.1.0",
+  "description": "Unattended SDD/TDD build harness for Claude Code (Workflow-coordinator). Complements superpowers.",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "check": "bash tests/check-engine.sh",
+    "test:rewitness": "bash tests/re-witness-red/seed.sh"
+  }
+}

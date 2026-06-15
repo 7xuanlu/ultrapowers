@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+*.log
+.claude/run*.jsonl
+.claude/ultrapowers-run.jsonl
+/tmp/
+.claude/worktrees/

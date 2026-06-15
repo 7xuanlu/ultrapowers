@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# SessionStart hook (ultrapowers): idempotently symlink the bundled engine into
+# ~/.claude/workflows/ so Workflow({name:'ultrapowers-development'}) resolves by name.
+# The bundled workflow/ultrapowers-development.js is the single source of truth; the
+# symlink always points at the plugin's current engine (no "two copies in sync" burden).
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ENGINE="${PLUGIN_ROOT}/workflow/ultrapowers-development.js"
+DEST_DIR="${HOME}/.claude/workflows"
+LINK="${DEST_DIR}/ultrapowers-development.js"
+
+mkdir -p "${DEST_DIR}"
+
+# Only manage our own symlink slot: (re)point it at the bundled engine when the slot is a
+# symlink or empty. Never clobber a real file a user may have placed there.
+if [ -L "${LINK}" ] || [ ! -e "${LINK}" ]; then
+  ln -snf "${ENGINE}" "${LINK}"
+fi
+
+printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":""}}\n'
+exit 0

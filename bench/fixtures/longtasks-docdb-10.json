@@ -1,0 +1,42 @@
+[
+  {
+    "id": "typeOf",
+    "spec": "Implement `typeOf(v): string`, default-exported from src/typeOf.js, tests in test/typeOf.test.js (node:test + node:assert/strict). Returns a normalized type tag. Acceptance: 1) null -> 'null' (checked BEFORE object); 2) arrays -> 'array' (BEFORE object); 3) 'number','string','boolean','object' for the rest. TDD: write the test file FIRST (one case per tag incl. null and [] ), watch RED, implement to GREEN. No deps. Verify: node --test passes."
+  },
+  {
+    "id": "deepEqual",
+    "spec": "Implement `deepEqual(a, b): boolean`, default-exported from src/deepEqual.js, tests in test/deepEqual.test.js. Structural equality for JSON-like values. Acceptance: 1) primitives compare by value (1===1, 'a'==='a', null===null); 2) nested objects equal regardless of key order; 3) arrays equal element-wise (order matters); 4) different shapes/lengths -> false. TDD: tests FIRST, RED, then GREEN. May reuse ./typeOf.js. Verify: node --test passes."
+  },
+  {
+    "id": "deepClone",
+    "spec": "Implement `deepClone(v): any`, default-exported from src/deepClone.js, tests in test/deepClone.test.js. Deep copy of JSON-like values. Acceptance: 1) mutating the clone (incl. nested) does NOT affect the original; 2) deepEqual(clone, original) is true; 3) primitives returned as-is. TDD: tests FIRST (assert independence after mutation), RED, GREEN. May reuse ./deepEqual.js in tests. Verify: node --test passes."
+  },
+  {
+    "id": "validateSchema",
+    "spec": "Implement `validateSchema(doc, schema): string[]`, default-exported from src/validateSchema.js, tests in test/validateSchema.test.js. schema maps field->expected type tag (as typeOf returns). Returns an array of human error strings; empty array means valid. Acceptance: 1) all fields correct -> []; 2) a wrong-typed field yields one error string containing the field name; 3) a missing required field yields an error. TDD first, RED, GREEN. Imports ./typeOf.js. Verify: node --test passes."
+  },
+  {
+    "id": "createCollection",
+    "spec": "Implement `createCollection(): object`, default-exported from src/createCollection.js, tests in test/createCollection.test.js. Returns a fresh collection object holding internal storage and a next-id counter (e.g. { _docs: [], _nextId: 1 }). Acceptance: 1) two calls return independent collections (mutating one does not affect the other); 2) a new collection has zero documents. TDD first, RED, GREEN. No deps. Verify: node --test passes."
+  },
+  {
+    "id": "insert",
+    "spec": "Implement `insert(coll, doc): object`, default-exported from src/insert.js, tests in test/insert.test.js. Stores a deepClone of doc with an auto-assigned integer `_id` (1,2,3,...), returns the stored doc (cloned). Acceptance: 1) returned doc has _id===1 for the first insert, 2 for the second; 2) mutating the input doc after insert does NOT change stored data (clone); 3) collection now reports the doc. Imports ./deepClone.js and uses ./createCollection.js shape. TDD first. Verify: node --test passes."
+  },
+  {
+    "id": "getById",
+    "spec": "Implement `getById(coll, id): object|null`, default-exported from src/getById.js, tests in test/getById.test.js. Returns a deepClone of the stored doc with that _id, or null. Acceptance: 1) returns the doc after insert; 2) returns null for a missing id; 3) the returned object is a clone (mutating it does not change storage). Uses ./insert.js + ./createCollection.js + ./deepClone.js. TDD first. Verify: node --test passes."
+  },
+  {
+    "id": "removeById",
+    "spec": "Implement `removeById(coll, id): boolean`, default-exported from src/removeById.js, tests in test/removeById.test.js. Acceptance: 1) removing an existing id returns true and getById then returns null; 2) removing a missing id returns false; 3) other docs are untouched. Uses ./insert.js, ./getById.js. TDD first, RED, GREEN. Verify: node --test passes."
+  },
+  {
+    "id": "updateById",
+    "spec": "Implement `updateById(coll, id, patch): object|null`, default-exported from src/updateById.js, tests in test/updateById.test.js. Shallow-merges patch keys into the stored doc (clone semantics), returns the updated doc clone or null if missing. Acceptance: 1) patched field changes, unpatched fields remain; 2) _id is preserved and cannot be overwritten by patch; 3) missing id -> null. Uses ./insert.js, ./getById.js, ./deepClone.js. TDD first. Verify: node --test passes."
+  },
+  {
+    "id": "matchEquals",
+    "spec": "Implement `matchEquals(doc, query): boolean`, default-exported from src/matchEquals.js, tests in test/matchEquals.test.js. True iff for every key in query, deepEqual(doc[key], query[key]). Acceptance: 1) empty query matches any doc; 2) single field equality matches or fails correctly; 3) nested object value matched via deepEqual. Imports ./deepEqual.js. TDD first, RED, GREEN. Verify: node --test passes."
+  }
+]
