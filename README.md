@@ -13,10 +13,6 @@ deterministic JavaScript coordinator, so a long, many-task build runs hands-off 
 your chat session. The name and the idea come from a Superpowers proposal obra declined; see
 [Why it exists](#why-it-exists).
 
-It runs in Claude Code today, hosted by the Workflow tool. The coordinator is plain JavaScript and
-the implementer can already be Claude, Codex, or Gemini, so hosting the coordinator on other agents
-is a roadmap goal, not a promise yet.
-
 ## What you get
 
 ![measured then projected: cost on par early, coordinator context and cost diverge at scale](docs/benchmarks/cost-projection-2026-06-14.svg)
@@ -203,6 +199,12 @@ Before you run it, read [`SECURITY.md`](./SECURITY.md), the threat model. In sho
 - External implementers (`codex` and `gemini`) run unsandboxed and need an explicit allow-list plus a
   sandbox carve-out. The default `claude` implementer does not. Details and rationale are in
   [`SECURITY.md`](./SECURITY.md).
+
+## Roadmap
+
+ultrapowers runs in Claude Code today, hosted by the Workflow tool. The coordinator is plain
+JavaScript and the implementer can already be Claude, Codex, or Gemini, so hosting the coordinator
+on other agents is the main open goal, not a promise yet.
 
 ## Contributing
 
