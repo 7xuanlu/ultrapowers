@@ -15,16 +15,24 @@ ultrapowers is a Claude Code **Workflow** (a deterministic JavaScript coordinato
 [Superpowers](https://github.com/obra/superpowers)' SDD/TDD discipline on disposable subagents:
 
 ```
-goal ─▶ plan ─▶ per task (SERIAL):
-                  implement (cheap model, strict TDD red-green-refactor)
-                    ─▶ deterministic gate (run the real test suite)
-                    ─▶ re-witness RED   (strip the impl, prove the test fails without it)
-                    ─▶ spec review  (capable model, fail-closed, "do not trust the report")
-                    ─▶ quality review (capable model, fail-closed, YAGNI/anti-gaming)
-                    ─▶ fix-loop
-               ─▶ dry-until-clean critic adds tasks until the goal is met
-               ─▶ final adversarial integration review (gates merge)
+goal ─▶ plan
+        ⏸ GATE 1 — you approve the plan, then walk away
+        ─▶ per task (SERIAL):
+             implement (cheap model, strict TDD red-green-refactor)
+               ─▶ deterministic gate (run the real test suite)
+               ─▶ re-witness RED   (strip the impl, prove the test fails without it)
+               ─▶ spec review  (capable model, fail-closed, "do not trust the report")
+               ─▶ quality review (capable model, fail-closed, YAGNI/anti-gaming)
+               ─▶ fix-loop
+        ─▶ dry-until-clean critic adds tasks until the goal is met
+        ─▶ final adversarial integration review
+        ⏸ GATE 2 — every finding from the run surfaces to you, before merge
 ```
+
+The build runs **unattended between the two gates**: a Workflow takes no mid-run human
+input, so the harness never stops to ask. Anything it hits — a failed task, a BLOCKED
+implementer, gaps the critic reopened, the integration verdict — is collected and surfaced
+to you at GATE 2, as a reviewable branch + verdict, not a stream of interruptions.
 
 Because the coordinator is a script (not an LLM turn), the **main session's context stays
 flat** for the whole run — only the final result lands in your window. The work tokens are
@@ -77,15 +85,48 @@ discipline ultrapowers runs and for a principled decline, and to
 **If you want interactive, human-in-the-loop development, use Superpowers** — it's the parent
 and it's better at that. ultrapowers is for unattended hand-offs.
 
-## Measured: cost on par, coordinator context 6× flatter
+## Where it fits in the Superpowers lifecycle
 
-Model-fair head-to-head — **same** implementer (sonnet) and reviewers (opus) on both arms;
-the *only* structural difference is where the orchestration loop lives. 24-task build, billed
-`total_cost_usd`. (`[V docs/benchmarks/cost-and-context-ladder-2026-06-14.md]`, `/council`-reviewed.)
+ultrapowers doesn't replace the front of the lifecycle — it **continues** it. Use Superpowers for
+the interactive, judgment-heavy front end (where its friction is load-bearing), then hand the plan
+to ultrapowers to build unattended:
 
-![superpowers vs ultrapowers — cost on par, coordinator context diverges](docs/benchmarks/cost-and-context-2026-06-14.svg)
+```
+SP brainstorming ─▶ SP writing-plans ─▶ UP /workflows-driven-development ─▶ SP finishing-a-branch
+   (tease out         (break into          (build it — unattended —            (merge / PR
+    the spec)          bite-size tasks)      until the goal is met)              decision)
+```
 
-**The two numbers for users:**
+It begins exactly where you'd otherwise reach for `subagent-driven-development` — same plan, same
+discipline — but runs on a flat coordinator, so the build survives arbitrarily long. You can also
+hand it a raw goal and let it plan; the front-end skills just give it a sharper spec to start from.
+
+## Design philosophy — a flat orchestrator
+
+One idea underneath everything: **the coordinator is code, not a model turn.**
+
+- **Zero LLM calls in the loop** — the controlling session's context never grows with the build,
+  so it can't compact or overflow. The reasoning happens in subagents, elsewhere.
+- **Disposable subagents pay the token cost** — once, then they're discarded; heavy context never
+  accumulates in your window.
+- **Durable state lives in files** (task list, per-task logs), not in a growing conversation — the
+  run is crash-resumable and unbounded in length.
+- **Least-powerful-model routing** — cheap models implement, capable models review; you don't pay
+  top-tier rates for mechanical work.
+
+That is what makes "hand off a whole goal and walk away" actually hold.
+
+## Cost: measured to 24 tasks, projected to a 1M window
+
+Model-fair head-to-head — **same** implementer (sonnet) and reviewers (opus) on both arms; the
+*only* structural difference is where the orchestration loop lives. In the figure, **solid lines are
+measured** (an N=1 ladder at 6/12/24 tasks, billed `total_cost_usd`); past the **task-24 cutoff** the
+**dashed lines are a projection** (`[V docs/benchmarks/cost-and-context-ladder-2026-06-14.md]`,
+`/council`-reviewed). One frame, before and after.
+
+![measured then projected — cost on par early; coordinator context and cost diverge at scale](docs/benchmarks/cost-projection-2026-06-14.svg)
+
+**Measured (≤24 tasks) — the two numbers for users:**
 
 - **Total cost is on par** — within ~6% the whole way to 24 tasks ($25.95 vs $28.19; the 12-task
   point even *reverses*), at **equal quality** (both 24/24 tasks green; ultrapowers wrote 192 tests
@@ -93,23 +134,14 @@ the *only* structural difference is where the orchestration loop lives. 24-task 
 - **The coordinator's session context grows ~6× slower** — **0.8K vs 5K tokens/task** (at 24 tasks,
   59K vs 172K). superpowers runs the loop *in-session*, so its context climbs with every task;
   ultrapowers' coordinator is a script, so its session only carries the task list in and the result
-  out — the build adds nothing.
+  out. On a 1M-context model **neither arm walls in normal use** — at realistic sizes this is a
+  *tie* you'd pick on features, not cost. N=1 per point — these locate the shape, not a CI.
 
-**What this means:** on a 1M-context coordinator (opus 4.8 / sonnet 4.6) **neither arm walls in
-normal use** — so at realistic sizes this is a *tie* you'd pick on features, not cost. ultrapowers'
-flat coordinator is **headroom**: a bounded, predictable session that survives very long autonomous
-runs (where superpowers' in-session controller eventually approaches the 1M ceiling ~task 180 and
-must compact) and keeps *your* window clear. N=1 per point — these locate the shape, not a CI.
-
-## Projected at scale: where the flat coordinator becomes a cost win
-
-Parity holds at normal sizes. But a *single long-running goal* — the case ultrapowers is built
-for — runs for hundreds of tasks, and there the architectures diverge. superpowers' coordinator
-window grows every task and is **re-read by the model on every turn** (a cache-read tax that grows
-with the window); ultrapowers' coordinator is bounded, so its cost stays ~linear. Extrapolating the
-measured ladder by that mechanism, up to where superpowers' coordinator approaches its 1M ceiling:
-
-![projected cost + context to ~1M coordinator window](docs/benchmarks/cost-projection-2026-06-14.svg)
+**Projected (past task 24) — where the flat coordinator becomes a cost win:** a *single
+long-running goal* runs for hundreds of tasks. superpowers' coordinator window grows every task and
+is **re-read by the model on every turn** (a cache-read tax that grows with the window); ultrapowers'
+coordinator is bounded, so its cost stays ~linear. Extrapolating the measured ladder by that
+mechanism, up to where superpowers' coordinator approaches its 1M ceiling:
 
 | tasks | SP window | **SP cost** | **UP cost** | ratio |
 |--:|--:|--:|--:|--:|
@@ -123,13 +155,14 @@ measured ladder by that mechanism, up to where superpowers' coordinator approach
 hand-off), ultrapowers runs it for **~$219 vs ~$395 — roughly 1.8× / ~$175 / ~45% cheaper.** UP's
 coordinator at that point is still ~188K (bounded; never walls).
 
-> **This is PROJECTED, not measured — honest disclosure.** It is an extrapolation from an **N=1**
-> ladder via the cache-read-tax mechanism; the band on the plot is the single-run uncertainty
-> (~1.3×–2.4× at task 180, central 1.8×). The clean *measured* signal is the window-growth rate
-> (5K vs 0.8K tok/task); the dollar curve rides on it. It is **sizable, not "massive"** — a 3×+ gap
-> would only appear *past* the 1M wall, in superpowers' forced-compaction regime, which we do **not**
-> model. Reproduce/audit the model in [`bench/plot-cost-projection.py`](./bench/plot-cost-projection.py)
-> and [`docs/benchmarks/cost-and-context-ladder-2026-06-14.md`](./docs/benchmarks/cost-and-context-ladder-2026-06-14.md).
+> **The dashed region is PROJECTED, not measured — honest disclosure.** It is an extrapolation from
+> an **N=1** ladder via the cache-read-tax mechanism; the band on the plot is the single-run
+> uncertainty (~1.3×–2.4× at task 180, central 1.8×). The clean *measured* signal is the
+> window-growth rate (5K vs 0.8K tok/task); the dollar curve rides on it. It is **sizable, not
+> "massive"** — a 3×+ gap would only appear *past* the 1M wall, in superpowers' forced-compaction
+> regime, which we do **not** model. Reproduce/audit the model in
+> [`bench/plot-cost-projection.py`](./bench/plot-cost-projection.py) and
+> [`docs/benchmarks/cost-and-context-ladder-2026-06-14.md`](./docs/benchmarks/cost-and-context-ladder-2026-06-14.md).
 
 ## Install
 
@@ -182,8 +215,16 @@ Before you run it, read **[`SECURITY.md`](./SECURITY.md)** — it is the threat 
 | `tests/re-witness-red/` | reproducible proof of the re-witness-RED catch path |
 | `docs/DISCUSSION.md` | running design log / open questions |
 
+## Contributing
+
+Contributions are held to the same bar ultrapowers enforces on the code it builds — TDD,
+re-witness-RED, surgical changes. Start with [`CONTRIBUTING.md`](./CONTRIBUTING.md) and
+[`AGENT.md`](./AGENT.md) (the agent/operator manual); all participation is under the
+[`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) (Contributor Covenant).
+
 ## License
 
-ultrapowers is [MIT](./LICENSE). It embeds verbatim MIT-licensed text from Superpowers
-(© 2025 Jesse Vincent); that license is reproduced in [`LICENSE-superpowers`](./LICENSE-superpowers)
-and the embedding is documented in [`NOTICE`](./NOTICE).
+ultrapowers is [MIT](./LICENSE). Per that license, the source of the embedded discipline is
+credited: it embeds verbatim MIT-licensed text from Superpowers (© 2025 Jesse Vincent), whose
+license is reproduced in [`LICENSE-superpowers`](./LICENSE-superpowers) and whose embedded files are
+enumerated in [`NOTICE`](./NOTICE).
