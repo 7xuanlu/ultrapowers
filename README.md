@@ -17,9 +17,9 @@ both sides; the only difference is where the orchestration loop runs):
 - **The coordinator stays flat.** Its session context grows about 6× slower (0.8K vs 5K tokens per
   task). superpowers runs the loop in your session, so its window climbs with every task;
   ultrapowers runs the loop in a script, so the build adds almost nothing to the controlling
-  session. On a single long goal of hundreds of tasks, that bounded coordinator is what lets the
-  run finish at all, and (projected) what makes it cheaper at scale. Full numbers and the honest
-  projection caveat are in [Benchmarks](#benchmarks-measured-then-projected).
+  session. On a single long goal of hundreds of tasks, that bounded coordinator is what keeps the
+  controlling session from filling up as the build grows, and (projected) what makes it cheaper at
+  scale. Full numbers and the honest projection caveat are in [Benchmarks](#benchmarks-measured-then-projected).
 
 ## Quick start
 
@@ -99,12 +99,11 @@ the spec. ultrapowers is that declined idea built and tested: SDD/TDD discipline
 Anthropic's deterministic Workflow primitive, proven by a reproducible re-witness-RED self-test and
 a measured benchmark, for the narrower audience that wants to hand off a whole goal and walk away.
 
-So this is complement, not replace. If you want interactive, human-in-the-loop development, use
-Superpowers; it is the parent and it is better at that. For unattended hand-offs, ultrapowers adds
-two things Superpowers does not ship: a dynamic loop-until-clean critic, and a mechanical
-re-witness-RED test-integrity check. Thanks to [@obra](https://github.com/obra) for the discipline
-and a principled decline, and to [@codename-cn](https://github.com/codename-cn) for the original
-idea.
+So this is complement, not replace: for interactive, human-in-the-loop work use Superpowers, the
+parent, which is better at it; ultrapowers is for unattended hand-offs, where it adds a dynamic
+loop-until-clean critic and the mechanical re-witness-RED check. Thanks to
+[@obra](https://github.com/obra) for the discipline and a principled decline, and to
+[@codename-cn](https://github.com/codename-cn) for the original idea.
 
 **What is ours, and what is not.** The flat coordinator is a property of Anthropic's Workflow
 primitive, not our invention; our move is choosing to host SDD/TDD on it. It is a scaling property,
@@ -127,7 +126,8 @@ any goal or plan ─▶ UP /workflows-driven-development ─▶ reviewed branch 
 ```
 
 It begins where you would otherwise reach for `subagent-driven-development`: same plan, same
-discipline, but on a flat coordinator, so the build survives arbitrarily long. Superpowers is one
+discipline, but on a flat coordinator, so a long, many-task build does not grow the controlling
+session. Superpowers is one
 good front end (its interactive friction is load-bearing) and `finishing-a-branch` is one good way
 to take the output to merge, but neither is required.
 
@@ -140,7 +140,7 @@ One idea sits underneath everything: the coordinator is code, not a model turn.
 - **Disposable subagents pay the token cost** once, then are discarded. Heavy context never
   accumulates in your window.
 - **Durable state lives in files** (the task list, per-task logs), not in a growing conversation.
-  The run is crash-resumable and unbounded in length.
+  The run is crash-resumable and is not limited by the controlling session's context.
 - **Least-powerful-model routing.** Cheap models implement, capable models review. You do not pay
   top-tier rates for mechanical work.
 
@@ -177,7 +177,7 @@ measured ladder by that mechanism:
 
 By the time superpowers' coordinator fills toward 1M (about task 180 in one hand-off), ultrapowers
 runs it for about $219 vs $395: roughly 1.8×, or $175, or 45% cheaper. ultrapowers' coordinator is
-still about 188K then, bounded, and never walls.
+still about 188K then, well under the model's context ceiling.
 
 > The dashed region is projected, not measured. It extrapolates an N=1 ladder via the cache-read-tax
 > mechanism; the band on the plot is single-run uncertainty (about 1.3× to 2.4× at task 180, central
