@@ -1,9 +1,21 @@
 # ultrapowers
 
-Unattended, flat-coordinator SDD/TDD build harness for Claude Code. Hand it a goal or a task
-list. It plans, builds each task under strict TDD, reviews every task with a separate capable
-model, loops a critic until the goal is met, and gates the whole change behind a final review.
-You step in at two points only: approving the plan, and reviewing the result.
+ultrapowers takes a goal or a task list and builds it for you, unattended, running the
+[Superpowers](https://github.com/obra/superpowers) build discipline by Jesse Vincent
+([@obra](https://github.com/obra)). It writes a plan, builds each task test-first, has a second and
+stronger model review every task, loops a critic until the goal is actually met, and hands back one
+reviewed branch. You step in at two points only: approving the plan up front, and reviewing the
+finished branch.
+
+That discipline is Superpowers' work, embedded verbatim: spec-first design, watch-it-fail TDD, and a
+two-stage review on every task. ultrapowers' own part is the host. It runs the discipline on a
+deterministic JavaScript coordinator, so a long, many-task build runs hands-off without filling up
+your chat session. The name and the idea come from a Superpowers proposal obra declined; see
+[Why it exists](#why-it-exists).
+
+It runs in Claude Code today, hosted by the Workflow tool. The coordinator is plain JavaScript and
+the implementer can already be Claude, Codex, or Gemini, so hosting the coordinator on other agents
+is a roadmap goal, not a promise yet.
 
 ## What you get
 
