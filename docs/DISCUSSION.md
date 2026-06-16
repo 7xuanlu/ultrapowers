@@ -37,7 +37,7 @@ F2. The N=5 × 4-arm campaign (~$90-130) is now unblocked, still pending explici
 
 ## Where things stand (2026-06-13)
 
-**What exists:** the harness (`workflows/ultrapowers-development.js`) + the `/ultrapowers`
+**What exists:** the harness (`workflow/ultrapowers-development.js`) + the `/workflows-driven-development`
 command, ported from Superpowers' SDD/TDD discipline onto Claude Code's Workflow primitive,
 plus re-witness RED and a dynamic loop-until-clean critic.
 
@@ -72,7 +72,7 @@ plus re-witness RED and a dynamic loop-until-clean critic.
    legal name in `LICENSE`/`NOTICE`.
 7. **Same-spec head-to-head** vs Superpowers — harness exists (`bench/`); fairness review says it can
    honestly prove **Meter-A flatness only** (no honest Meter-B headline at small N). **ARM-A pilot
-   PASSED 2026-06-14:** headless superpowers (`subagent-driven-development`) genuinely fired, fairness
+   PASSED 2026-06-14:** headless superpowers (`superpowers:subagent-driven-development`) genuinely fired, fairness
    pins held, $1.89 for one slugify task (sonnet $0.70 + opus $1.18), 6/6 green. Metering solved
    (`metering-findings.md`). Full **N=5 × 4-arm ≈ $90-130**, pending user go.
    **BLOCKER RESOLVED 2026-06-14** (see top entry): dropped `--bare` from `bench/run.sh`

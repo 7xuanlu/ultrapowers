@@ -1,5 +1,5 @@
 ---
-description: "Unattended SDD build harness — strict TDD, model-routed, two-stage fail-closed review, mechanical re-witness-RED. Human gates ONLY at plan approval + critical review. Complements superpowers."
+description: "ultrapowers, the unattended SDD build harness: strict TDD, model-routed, two-stage fail-closed review, mechanical re-witness-RED. Human gates ONLY at plan approval + critical review. Complements superpowers."
 disable-model-invocation: true
 ---
 

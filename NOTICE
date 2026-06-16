@@ -6,9 +6,10 @@ This product includes software developed as part of Superpowers
 licensed under the MIT License. The full Superpowers license text is reproduced
 in the file LICENSE-superpowers.
 
-Specifically, ultrapowers embeds the following text VERBATIM from Superpowers
-(version 5.1.0), used to give the build harness exact behavioral parity with the
-Superpowers skills it descends from:
+Specifically, ultrapowers embeds text from Superpowers (version 5.1.0) — the TDD
+and SDD skill content verbatim, and the two reviewer briefs sourced/adapted from it —
+used to give the build harness behavioral parity with the Superpowers skills it
+descends from:
 
   - workflow/ultrapowers-development.js : the embedded `TDD_SKILL` string is the
     verbatim content of superpowers:test-driven-development/SKILL.md

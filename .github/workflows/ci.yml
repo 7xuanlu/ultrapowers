@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Static, free, dependency-free checks. NOTE: the re-witness-RED self-test
+# (`npm run test:rewitness`) replays model prompts through Claude Code and SPENDS
+# TOKENS / needs auth — it cannot run in stock CI. It is a runtime/manual gate
+# (run it locally or on a nightly with secrets), not a per-push check. CI here
+# guards what can be verified for free: the engine parses, and every shipped
+# manifest is valid JSON (a broken manifest means the plugin won't install).
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Engine syntax check
+        run: npm run check
+      - name: Validate JSON manifests
+        run: |
+          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json package.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8')); console.log('ok: $f')"
+          done
