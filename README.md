@@ -70,9 +70,18 @@ harness never stops to ask. Anything it hits (a failed task, a BLOCKED implement
 reopened, the integration verdict) is collected and surfaced to you at GATE 2 as a reviewable branch
 and a verdict, not a stream of interruptions.
 
-Because the coordinator is a script and not an LLM turn, the controlling session's context stays
-flat for the whole run. Only the final result lands in your window. The work tokens are paid by
-disposable subagents running on cheap, role-routed models.
+The whole design follows from one fact: **the coordinator is code, not a model turn.**
+
+- **Zero LLM calls in the loop.** The controlling session's context never grows with the build, so
+  it cannot compact or overflow; the reasoning happens in subagents.
+- **Disposable subagents pay the token cost** once, then are discarded, so heavy context never
+  accumulates in your window.
+- **Durable state lives in files** (the task list, per-task logs), so the run is crash-resumable and
+  is not limited by the controlling session's context.
+- **Least-powerful-model routing.** Cheap models implement, capable models review; you do not pay
+  top-tier rates for mechanical work.
+
+That is what makes "hand off a whole goal and walk away" actually hold.
 
 ## Why it exists
 
@@ -80,24 +89,22 @@ disposable subagents running on cheap, role-routed models.
 runs (watch-it-fail TDD, the two-stage fail-closed review, least-powerful-model routing) is
 Superpowers' work by Jesse Vincent ([@obra](https://github.com/obra)), embedded verbatim, with
 gratitude (see [`NOTICE`](./NOTICE)). Expect the same harness guarantees you would get from
-Superpowers on everything it covers, no more and no less. The parts that are ours, and where
-ultrapowers can do better, are spelled out below.
+Superpowers on everything it covers, no more and no less.
 
-Superpowers is prompt-driven and in-session by design, and obra has been deliberate about that.
-Asked whether orchestration should move to an external coordinator, he answered: *"It's purely
-prompt driven. It seems to work quite well in practice and is improving as the models improve. I
-think there is a ton of value in external orchestrators, but moving to that model is dramatically
-more complicated for most users"* ([#1041](https://github.com/obra/superpowers/issues/1041)). For
-Superpowers' broad audience that is the right call, and we respect it.
+Superpowers is prompt-driven and in-session by design, and obra has been deliberate about it: asked
+whether orchestration should move to an external coordinator, he answered that there is *"a ton of
+value in external orchestrators, but moving to that model is dramatically more complicated for most
+users"* ([#1041](https://github.com/obra/superpowers/issues/1041)). For Superpowers' broad audience
+that is the right call, and we respect it.
 
-The name comes from a proposal Superpowers declined. Issue
+The name comes from a proposal Superpowers declined:
 [#1647](https://github.com/obra/superpowers/issues/1647), *"a new workflow-driven-development
-skill-command … the workflow-native sibling of SDD"*, was opened by
-[@codename-cn](https://github.com/codename-cn) and closed not-planned by obra, who noted it was an
-untested, agent-authored RFC (*"made up by an agent that didn't even test it"*). That critique is
-the spec. ultrapowers is that declined idea built and tested: SDD/TDD discipline hosted on
-Anthropic's deterministic Workflow primitive, proven by a reproducible re-witness-RED self-test and
-a measured benchmark, for the narrower audience that wants to hand off a whole goal and walk away.
+skill-command … the workflow-native sibling of SDD"*, opened by
+[@codename-cn](https://github.com/codename-cn) and closed not-planned by obra as an untested,
+agent-authored RFC (*"made up by an agent that didn't even test it"*). That critique is the spec:
+ultrapowers is that idea built and tested, hosting the SDD/TDD discipline on Anthropic's
+deterministic Workflow primitive, proven by a reproducible re-witness-RED self-test and a measured
+benchmark, for the narrower audience that wants to hand off a whole goal and walk away.
 
 So this is complement, not replace: for interactive, human-in-the-loop work use Superpowers, the
 parent, which is better at it; ultrapowers is for unattended hand-offs, where it adds a dynamic
@@ -130,21 +137,6 @@ discipline, but on a flat coordinator, so a long, many-task build does not grow 
 session. Superpowers is one
 good front end (its interactive friction is load-bearing) and `finishing-a-branch` is one good way
 to take the output to merge, but neither is required.
-
-## Design philosophy: a flat orchestrator
-
-One idea sits underneath everything: the coordinator is code, not a model turn.
-
-- **Zero LLM calls in the loop.** The controlling session's context never grows with the build, so
-  it cannot compact or overflow. The reasoning happens in subagents.
-- **Disposable subagents pay the token cost** once, then are discarded. Heavy context never
-  accumulates in your window.
-- **Durable state lives in files** (the task list, per-task logs), not in a growing conversation.
-  The run is crash-resumable and is not limited by the controlling session's context.
-- **Least-powerful-model routing.** Cheap models implement, capable models review. You do not pay
-  top-tier rates for mechanical work.
-
-That is what makes "hand off a whole goal and walk away" actually hold.
 
 ## Benchmarks: measured, then projected
 
@@ -199,21 +191,6 @@ Before you run it, read [`SECURITY.md`](./SECURITY.md), the threat model. In sho
 - External implementers (`codex` and `gemini`) run unsandboxed and need an explicit allow-list plus a
   sandbox carve-out. The default `claude` implementer does not. Details and rationale are in
   [`SECURITY.md`](./SECURITY.md).
-
-## Layout
-
-| path | what |
-|------|------|
-| `.claude-plugin/` | installable plugin manifests (`plugin.json` and `marketplace.json`) |
-| `commands/workflows-driven-development.md` | the `/workflows-driven-development` command (user-only; owns the human gates) |
-| `workflow/ultrapowers-development.js` | the harness (the deterministic coordinator) |
-| `hooks/` | SessionStart hook; symlinks the engine into `~/.claude/workflows/` |
-| `reference/` | load-on-demand command docs (task-list, harness, re-witness-red, gating) |
-| `docs/decisions/` | architecture decision records |
-| `docs/research/oss-landscape.md` | competitive and novelty analysis (evidence-tagged) |
-| `docs/benchmarks/token-benchmark.md` | token-cost model and measured results |
-| `tests/re-witness-red/` | reproducible proof of the re-witness-RED catch path |
-| `docs/DISCUSSION.md` | running design log and open questions |
 
 ## Contributing
 
