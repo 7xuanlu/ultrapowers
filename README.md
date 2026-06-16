@@ -217,3 +217,9 @@ ultrapowers is [MIT](./LICENSE). Per that license, the source of the embedded di
 credited: it embeds verbatim MIT-licensed text from Superpowers (Copyright 2025 Jesse Vincent),
 whose license is reproduced in [`LICENSE-superpowers`](./LICENSE-superpowers) and whose embedded
 files are enumerated in [`NOTICE`](./NOTICE).
+
+## Community
+
+- Questions, bugs, and ideas: [open an issue](https://github.com/7xuanlu/ultrapowers/issues).
+- ultrapowers stands on Superpowers. If it helps you, please consider
+  [sponsoring obra's open-source work](https://github.com/sponsors/obra).
