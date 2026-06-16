@@ -1,0 +1,27 @@
+name: release-please
+
+# Automates releases from Conventional Commits on main: opens a release PR that bumps
+# the version (package.json, .claude-plugin/plugin.json, .claude-plugin/marketplace.json) and
+# updates CHANGELOG.md; merging that PR tags the version and cuts the GitHub Release.
+#
+# NOTE: this repo squash-merges PRs, so release-please only sees the squash-commit TITLE on
+# main. Squash titles must be Conventional Commits (feat:, fix:, docs:, chore: ...) or no
+# release is proposed. See CONTRIBUTING.md.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
