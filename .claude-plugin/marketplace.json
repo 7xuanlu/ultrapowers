@@ -7,8 +7,9 @@
   "plugins": [
     {
       "name": "ultrapowers",
+      "version": "0.1.0",
       "source": "./",
-      "description": "Unattended SDD/TDD build harness — strict TDD, two-stage fail-closed review, mechanical re-witness-RED. Complements superpowers; does not replace it.",
+      "description": "Unattended SDD/TDD build harness — strict TDD, two-stage fail-closed review, mechanical re-witness-RED. Complements superpowers by Jesse Vincent (@obra); does not replace it.",
       "license": "MIT",
       "keywords": ["sdd", "tdd", "workflow", "unattended", "code-review", "re-witness-red", "superpowers"]
     }

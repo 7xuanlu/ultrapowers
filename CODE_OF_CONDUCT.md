@@ -18,6 +18,3 @@ project or its community.
 Concerns may be reported privately to the maintainer, [@7xuanlu](https://github.com/7xuanlu).
 All reports will be reviewed and handled discreetly. Maintainers are responsible for clarifying and
 enforcing the standards in the Covenant and may take appropriate, fair corrective action.
-
-> Maintainer note: replace the line above with a dedicated contact email before public launch if
-> you prefer one over a GitHub handle.

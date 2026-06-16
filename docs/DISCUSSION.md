@@ -37,7 +37,7 @@ F2. The N=5 × 4-arm campaign (~$90-130) is now unblocked, still pending explici
 
 ## Where things stand (2026-06-13)
 
-**What exists:** the harness (`workflows/ultrapowers-development.js`) + the `/ultrapowers`
+**What exists:** the harness (`workflow/ultrapowers-development.js`) + the `/workflows-driven-development`
 command, ported from Superpowers' SDD/TDD discipline onto Claude Code's Workflow primitive,
 plus re-witness RED and a dynamic loop-until-clean critic.
 
