@@ -36,19 +36,29 @@ ultrapowers stands on **Superpowers** by Jesse Vincent ([@obra](https://github.c
 Its discipline — watch-it-fail TDD, two-stage fail-closed review, least-powerful-model
 routing — is Superpowers', adopted **verbatim**, with gratitude. See [`NOTICE`](./NOTICE).
 
-Superpowers is, by design, **prompt-driven and in-session**. Its maintainer has deliberately
-declined moving orchestration to an external coordinator — *"there is a ton of value in
-external orchestrators, but moving to that model is dramatically more complicated for most
-users"* ([#1041](https://github.com/obra/superpowers/issues/1041)) — and closed the
-dynamic-workflow proposal as not-planned ([#1647](https://github.com/obra/superpowers/issues/1647)).
-That is the right call for Superpowers' audience, and we respect it.
+Superpowers is, by design, **prompt-driven and in-session**, and its maintainer has been
+deliberate about that. Asked whether orchestration should move to an external coordinator, obra
+answered: *"It's purely prompt driven. It seems to work quite well in practice and is improving as
+the models improve. I think there is a ton of value in external orchestrators, but moving to that
+model is dramatically more complicated for most users"*
+([#1041](https://github.com/obra/superpowers/issues/1041)). For Superpowers' broad audience that is
+the right call, and we respect it.
 
-ultrapowers serves the *other* audience: people who want to hand off a **whole goal and walk
-away** — long, unattended builds. It takes the path Superpowers declined: hosting
-that discipline on Anthropic's deterministic **Workflow** primitive (so the coordinator's
-context stays flat and the run survives arbitrarily long), and adds two things Superpowers
-doesn't ship: a **dynamic loop-until-clean critic** and a **mechanical re-witness-RED**
+**ultrapowers' very name comes from a proposal Superpowers declined.** Issue
+[#1647](https://github.com/obra/superpowers/issues/1647) — *"a new workflow-driven-development
+skill-command … the workflow-native sibling of SDD"* — was opened by
+[@codename-cn](https://github.com/codename-cn) and closed **not-planned** by obra, who noted it was
+an untested, agent-authored RFC (*"made up by an agent that didn't even test it"*). **That critique
+is the spec.** ultrapowers is that declined idea actually **built and tested**: SDD/TDD discipline
+hosted on Anthropic's deterministic **Workflow** primitive (flat coordinator, survives arbitrarily
+long), proven by a reproducible re-witness-RED self-test and a measured N=5 benchmark — for the
+narrower audience that wants to hand off a **whole goal and walk away**. It adds two things
+Superpowers doesn't ship: a **dynamic loop-until-clean critic** and a **mechanical re-witness-RED**
 test-integrity check.
+
+This is **complement, not replace** — with thanks to [@obra](https://github.com/obra) for the
+discipline ultrapowers runs and for a principled decline, and to
+[@codename-cn](https://github.com/codename-cn) for the original workflow-driven-development idea.
 
 **Honest scope of the contribution** (see [`docs/research/oss-landscape.md`](./docs/research/oss-landscape.md)):
 - The **flat coordinator** is a property of Anthropic's Workflow primitive — **not our invention**.
@@ -127,10 +137,10 @@ coordinator at that point is still ~188K (bounded; never walls).
 /plugin marketplace add 7xuanlu/claude-plugins
 /plugin install ultrapowers@7xuanlu
 ```
-Or install this repo directly (it is its own single-plugin marketplace):
+Or install this repo directly (it is its own single-plugin marketplace, also named `7xuanlu`):
 ```
 /plugin marketplace add 7xuanlu/ultrapowers
-/plugin install ultrapowers@ultrapowers
+/plugin install ultrapowers@7xuanlu
 ```
 Start a new session so the SessionStart hook runs — it symlinks the engine into
 `~/.claude/workflows/ultrapowers-development.js`. Then:
