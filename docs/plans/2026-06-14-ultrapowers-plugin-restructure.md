@@ -1,17 +1,17 @@
-# ultrapowers Plugin Restructure — Implementation Plan
+# ultrapowers Plugin Restructure, Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Package the existing Workflow-coordinator harness as a lean, command-driven Claude Code plugin — installable from a local marketplace, with a single user-only `/workflows-driven-development` command, a SessionStart symlink hook, and load-on-demand reference docs — without changing engine behavior.
+**Goal:** Package the existing Workflow-coordinator harness as a lean, command-driven Claude Code plugin, installable from a local marketplace, with a single user-only `/workflows-driven-development` command, a SessionStart symlink hook, and load-on-demand reference docs, without changing engine behavior.
 
 **Architecture:** The repo root *is* the plugin root. A `.claude-plugin/` manifest pair (`plugin.json` + `marketplace.json`) makes it installable. The engine moves `workflows/ → workflow/` (single source of truth); a SessionStart hook idempotently symlinks it into `~/.claude/workflows/` so `Workflow({name:'ultrapowers-development'})` resolves by name. The existing `commands/ultrapowers.md` is **renamed** to `commands/workflows-driven-development.md` (git mv + rewrite) and gains `disable-model-invocation: true`, two modes (`default` / `--thorough`), `--tasks` validation, and an `implementer:"claude"` product default. `reference/*.md` docs are *lifted* from existing ADRs/gating/memory and `Read` on demand via `${CLAUDE_PLUGIN_ROOT}`. `bench/` is retained untouched except the one engine-path reference.
 
 **Tech Stack:** Claude Code plugin format (`.claude-plugin/`, hooks, commands), Node.js (the engine, `node --check` / `node --test`), bash (hook + bench scripts), JSON manifests.
 
-**Spec:** `docs/design/2026-06-14-ultrapowers-plugin-design.md` (approved, adversarially reviewed). Decision log D1–D11 there governs; `[impl-verify]` flags resolved in the plan header above.
+**Spec:** `docs/design/2026-06-14-ultrapowers-plugin-design.md` (approved, adversarially reviewed). Decision log D1-D11 there governs; `[impl-verify]` flags resolved in the plan header above.
 
 **Source facts (verified, do not re-derive):**
-- Engine args surface (what the command may pass): `tasks`, `goal`, `verifyCmd`, `logFile`, `commit`, `maxRounds`(def 3), `maxTasks`(def 50), `implementer`(def `codex`), `implModel`(def `sonnet`), `codexModel`, `codexReasoning`, `codexTimeoutMs`, `verifyTimeoutMs`, `fullVerifyCmd`, `redWitness`(def true), `loopUntilClean`(def false), `repoDir`. Engine `meta.name = 'ultrapowers-development'` — **must not rename** (by-name dispatch depends on it).
+- Engine args surface (what the command may pass): `tasks`, `goal`, `verifyCmd`, `logFile`, `commit`, `maxRounds`(def 3), `maxTasks`(def 50), `implementer`(def `codex`), `implModel`(def `sonnet`), `codexModel`, `codexReasoning`, `codexTimeoutMs`, `verifyTimeoutMs`, `fullVerifyCmd`, `redWitness`(def true), `loopUntilClean`(def false), `repoDir`. Engine `meta.name = 'ultrapowers-development'`, **must not rename** (by-name dispatch depends on it).
 - 3 live engine references: `bench/run.sh:31` (scriptPath, **breaks on move**), `commands/ultrapowers.md:23,30` (by-name, move-safe), `~/.claude/workflows/ultrapowers-development.js` (symlink, hook-managed).
 - ADRs are in `docs/decisions/README.md` (no numbered files): ADR-0001 (host on Workflow primitive), ADR-0002 (re-witness RED), ADR-0003 (dry-until-clean critic). Gating rules in `docs/design/gating-and-escalation.md`. Task-args gotcha in `~/.claude/projects/-Users-lucian-Repos-ultrapowers/memory/ultrapowers-workflow-task-args-gotchas.md`.
 - NOTICE legal-name TODO at `NOTICE:29` (P0). superpowers hook pattern: `hooks/hooks.json` (SessionStart matcher `startup|clear|compact`) + a bash `hooks/session-start` emitting `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"..."}}`.
@@ -27,7 +27,7 @@
 | `package.json` | create | engine is Node ESM; declares `type:"module"` + `node --check`/`node --test` scripts |
 | `hooks/hooks.json` | create | SessionStart matcher → runs `session-start` |
 | `hooks/session-start` | create | idempotent symlink of engine into `~/.claude/workflows/`; safe (won't clobber a real file) |
-| `workflow/ultrapowers-development.js` | move (git mv from `workflows/`) | the engine — single source of truth |
+| `workflow/ultrapowers-development.js` | move (git mv from `workflows/`) | the engine, single source of truth |
 | `commands/workflows-driven-development.md` | move+rewrite (git mv from `commands/ultrapowers.md`) | user-only entry; gates, modes, dispatch, validation, reference pointers |
 | `reference/task-list.md` | create (lift) | `args.tasks=[{id,spec}]` format + the bare-string-drops footgun |
 | `reference/harness.md` | create (lift) | coordinator args + model routing + ADR-0001 |
@@ -35,7 +35,7 @@
 | `reference/gating.md` | create (lift) | deterministic replan/verify/escalate (binary, bounded) |
 | `bench/run.sh` | modify (line 31) | repoint `WORKFLOW_JS` to `workflow/` |
 | `SECURITY.md` | create | unattended code-execution disclosure (P0) |
-| `NOTICE` | modify (line 29) | resolve legal-name TODO (**user decision** — Task 8) |
+| `NOTICE` | modify (line 29) | resolve legal-name TODO (**user decision**, Task 8) |
 | `HANDOFF.md` / `README.md` | modify | reflect new paths + install instructions |
 
 ---
@@ -72,13 +72,13 @@ The engine is ES-module JS run by `node`; declaring the package makes `node --ch
 {
   "name": "ultrapowers",
   "version": "0.1.0",
-  "description": "Unattended SDD/TDD build harness — hands-off goal→plan→build with strict TDD, two-stage fail-closed review, and mechanical re-witness-RED. Complements superpowers; does not replace it.",
+  "description": "Unattended SDD/TDD build harness, hands-off goal→plan→build with strict TDD, two-stage fail-closed review, and mechanical re-witness-RED. Complements superpowers; does not replace it.",
   "author": { "name": "Lucian (@7xuanlu)" },
   "license": "MIT"
 }
 ```
 
-(`homepage`/repo URL intentionally omitted until a public remote exists — YAGNI; add at publish.)
+(`homepage`/repo URL intentionally omitted until a public remote exists, YAGNI; add at publish.)
 
 - [ ] **Step 3: Create `.claude-plugin/marketplace.json`**
 
@@ -99,7 +99,7 @@ The engine is ES-module JS run by `node`; declaring the package makes `node --ch
 - [ ] **Step 4: Validate JSON**
 
 Run: `for f in package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json; do python3 -m json.tool "$f" >/dev/null && echo "ok $f"; done`
-Expected: `ok package.json` / `ok .claude-plugin/plugin.json` / `ok .claude-plugin/marketplace.json` (module-type-agnostic — avoids `node -e`'s CommonJS/ESM ambiguity now that `package.json` is `type:module`).
+Expected: `ok package.json` / `ok .claude-plugin/plugin.json` / `ok .claude-plugin/marketplace.json` (module-type-agnostic, avoids `node -e`'s CommonJS/ESM ambiguity now that `package.json` is `type:module`).
 
 - [ ] **Step 5: Commit**
 
@@ -142,7 +142,7 @@ bash "$HOOK" >/dev/null
 [ -L "$LINK" ] || fail "symlink not created"
 [ "$(readlink "$LINK")" = "$ENGINE" ] || fail "symlink points wrong: $(readlink "$LINK")"
 
-# (b) idempotent — second run succeeds, link unchanged
+# (b) idempotent, second run succeeds, link unchanged
 bash "$HOOK" >/dev/null
 [ "$(readlink "$LINK")" = "$ENGINE" ] || fail "idempotent run changed link"
 
@@ -167,9 +167,9 @@ echo "PASS test-session-start"
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `bash tests/hook/test-session-start.sh`
-Expected: FAIL — `hooks/session-start` does not exist yet (`bash: .../hooks/session-start: No such file`).
+Expected: FAIL, `hooks/session-start` does not exist yet (`bash: .../hooks/session-start: No such file`).
 
-(Note: this test references `workflow/ultrapowers-development.js`, created in Task 3. Until then the symlink target dangles — the test still validates link creation/idempotency/no-clobber/repoint, which is path-based, not target-existence-based. Re-run after Task 3 to confirm the target resolves.)
+(Note: this test references `workflow/ultrapowers-development.js`, created in Task 3. Until then the symlink target dangles, the test still validates link creation/idempotency/no-clobber/repoint, which is path-based, not target-existence-based. Re-run after Task 3 to confirm the target resolves.)
 
 - [ ] **Step 3: Write `hooks/session-start`**
 
@@ -269,15 +269,15 @@ WORKFLOW_JS="$(cd "$SCRIPT_DIR/.." && pwd)/workflow/ultrapowers-development.js"
 
 The grep pattern must exclude BOTH `docs/` (historical) AND `.claude/workflows` (the legitimate
 runtime *symlink destination* `~/.claude/workflows/ultrapowers-development.js`, which correctly
-keeps that substring — do NOT change those):
+keeps that substring, do NOT change those):
 
-Run (include extensionless `NOTICE`/`LICENSE` — they reference the engine source too and the
+Run (include extensionless `NOTICE`/`LICENSE`, they reference the engine source too and the
 `--include` globs miss them): `grep -rn "workflows/ultrapowers-development" . --include='*.sh' --include='*.md' --include='*.json' NOTICE LICENSE | grep -v '\.claude/worktrees' | grep -v 'docs/' | grep -v '\.claude/workflows'`
 
 Every remaining hit is a stale reference to the moved engine *source* (`README.md`, `HANDOFF.md`,
 `bench/README.md`, `tests/re-witness-red/*`, `NOTICE`). Update each `workflows/ultrapowers-development`
 → `workflow/ultrapowers-development` (the engine moved; these now point at a nonexistent path).
-**Leave untouched** any line containing `.claude/workflows/` (symlink dest — correct).
+**Leave untouched** any line containing `.claude/workflows/` (symlink dest, correct).
 Re-run the grep; expected: **empty**.
 
 - [ ] **Step 5: Verify bench can still resolve the engine path**
@@ -309,7 +309,7 @@ git commit -m "refactor(plugin): move engine workflows/ -> workflow/; repoint be
 
 > **Lift rule:** these are concise operational extracts of existing prose. Do **not** invent new claims. Pull each from its source and preserve every honesty caveat verbatim. Sources are listed per file.
 
-- [ ] **Step 1: `reference/task-list.md`** — source: `~/.claude/projects/-Users-lucian-Repos-ultrapowers/memory/ultrapowers-workflow-task-args-gotchas.md`
+- [ ] **Step 1: `reference/task-list.md`**, source: `~/.claude/projects/-Users-lucian-Repos-ultrapowers/memory/ultrapowers-workflow-task-args-gotchas.md`
 
 Content:
 
@@ -318,8 +318,8 @@ Content:
 
 `args.tasks` MUST be an array of `{id: string, spec: string}` objects.
 
-- `id` — short unique slug (e.g. `"db-open"`).
-- `spec` — the full task instruction (a rich multi-line string is fine).
+- `id`, short unique slug (e.g. `"db-open"`).
+- `spec`, the full task instruction (a rich multi-line string is fine).
 
 **Footgun (silent):** bare strings are **silently dropped**. The shape is never
 validated; the build loop filters out any entry lacking a truthy `.id`, so a list of
@@ -337,7 +337,7 @@ Example:
 \```
 ```
 
-- [ ] **Step 2: `reference/harness.md`** — source: `docs/decisions/README.md` (ADR-0001) + engine arg surface (plan header)
+- [ ] **Step 2: `reference/harness.md`**, source: `docs/decisions/README.md` (ADR-0001) + engine arg surface (plan header)
 
 Content (lift ADR-0001 summary + the arg table; keep it operational):
 
@@ -353,9 +353,9 @@ cannot pause mid-run for input, so human gates live in the command, before/after
 ## Args the command may pass
 | arg | default | meaning |
 |---|---|---|
-| `tasks` | — | `[{id,spec}]` pre-decomposed list (skips planning) |
-| `goal` | — | goal to decompose (planning mode) |
-| `verifyCmd` | — | deterministic test command (the gate) |
+| `tasks` |, | `[{id,spec}]` pre-decomposed list (skips planning) |
+| `goal` |, | goal to decompose (planning mode) |
+| `verifyCmd` |, | deterministic test command (the gate) |
 | `repoDir` | session cwd | absolute path to the target repo |
 | `commit` | false | per-task git commits (**required** for re-witness RED) |
 | `implementer` | `codex` (product passes `claude`) | implementer CLI: `claude`\|`codex`\|`gemini` |
@@ -371,12 +371,12 @@ verify + re-witness relays = `haiku`; graduated escalation to `opus` on repeated
 implementer failure.
 ```
 
-- [ ] **Step 3: `reference/re-witness-red.md`** — source: `docs/decisions/README.md` (ADR-0002) + spec §6 (preserve the evidence caveat verbatim)
+- [ ] **Step 3: `reference/re-witness-red.md`**, source: `docs/decisions/README.md` (ADR-0002) + spec §6 (preserve the evidence caveat verbatim)
 
 Content:
 
 ```markdown
-# re-witness RED (ADR-0002) — the headline mechanism
+# re-witness RED (ADR-0002), the headline mechanism
 
 After a task's suite goes green, revert **only the production files** changed by this task
 (keep the tests), and re-run the suite. If it is **still green**, the test never exercised
@@ -384,7 +384,7 @@ the implementation → send the task back to the implementer. Then restore the p
 files.
 
 - **Default-on**, one `haiku` call/task, **fail-open** (never blocks on its own error).
-- **Gated** on `commit:true` + a `verifyCmd` — silently inert without them.
+- **Gated** on `commit:true` + a `verifyCmd`, silently inert without them.
 - **Boundary:** P1-strip catches *non-dependent* tests. Weak-but-dependent tests
   (e.g. type-only assertions) need a P2 mutant pass, deliberately **not** shipped in v1.
 - **Evidence status (honest):** proven on a *seeded vacuous test* (`tests/re-witness-red/`);
@@ -392,7 +392,7 @@ files.
   the model-fair eval, with this caveat stated, not hidden.
 ```
 
-- [ ] **Step 4: `reference/gating.md`** — source: `docs/design/gating-and-escalation.md`
+- [ ] **Step 4: `reference/gating.md`**, source: `docs/design/gating-and-escalation.md`
 
 Content:
 
@@ -401,8 +401,8 @@ Content:
 
 All gates are **binary + bounded**, never confidence-scored.
 
-- **Gate A (verify/fix-loop):** fires on deterministic signals — test exit code,
-  re-witness RED, blocking-severity findings — bounded at `MAX_FIX = 3` rounds; anti-thrash
+- **Gate A (verify/fix-loop):** fires on deterministic signals, test exit code,
+  re-witness RED, blocking-severity findings, bounded at `MAX_FIX = 3` rounds; anti-thrash
   guard stops if blocking findings don't shrink for 2 consecutive rounds.
 - **Gate B (replan/critic):** critic returns binary `{clean: true|false}`; loops until clean
   or `maxRounds`/budget hit. Opt-in via `loopUntilClean:true` (**goal mode only**).
@@ -439,11 +439,11 @@ git mv commands/ultrapowers.md commands/workflows-driven-development.md
 
 - [ ] **Step 2: Replace the file contents**
 
-Write `commands/workflows-driven-development.md` (full content — this is the user-only entry; it owns the gates, the modes, the validation, and dispatch). Preserve the existing two-gate structure; add `disable-model-invocation`, `--thorough` (goal-only) + `--tasks` validation, `implementer:"claude"` default, and reference pointers via `${CLAUDE_PLUGIN_ROOT}`:
+Write `commands/workflows-driven-development.md` (full content, this is the user-only entry; it owns the gates, the modes, the validation, and dispatch). Preserve the existing two-gate structure; add `disable-model-invocation`, `--thorough` (goal-only) + `--tasks` validation, `implementer:"claude"` default, and reference pointers via `${CLAUDE_PLUGIN_ROOT}`:
 
 ````markdown
 ---
-description: "Unattended SDD build harness — strict TDD, model-routed, two-stage fail-closed review, mechanical re-witness-RED. Human gates ONLY at plan approval + critical review. Complements superpowers."
+description: "Unattended SDD build harness, strict TDD, model-routed, two-stage fail-closed review, mechanical re-witness-RED. Human gates ONLY at plan approval + critical review. Complements superpowers."
 disable-model-invocation: true
 ---
 
@@ -451,7 +451,7 @@ disable-model-invocation: true
 
 User-only entry to the **ultrapowers** harness. Spends real tokens → never auto-invoked.
 You (the model running this command) own the two human gates and dispatch the deterministic
-Workflow engine. Do **not** re-implement the loop — dispatch the engine.
+Workflow engine. Do **not** re-implement the loop, dispatch the engine.
 
 ## Usage
 ```
@@ -471,7 +471,7 @@ format: see `${CLAUDE_PLUGIN_ROOT}/reference/task-list.md`." Then stop.
 If the target repo is on `main`/`master`, create a feature worktree/branch first
 (`EnterWorktree` or `git checkout -b feature/<goal-slug>`). The harness commits per task.
 
-## GATE 1 — plan approval (goal mode)
+## GATE 1, plan approval (goal mode)
 For a `<goal>`: dispatch planning only, then present the task list to the human.
 ```
 Workflow({ name:'ultrapowers-development', args:{ goal:<goal>, planOnly:true } })
@@ -480,13 +480,13 @@ Show the proposed tasks and ask: **Approve this plan / edit / abort?** Do not bu
 > A Workflow cannot pause mid-run (ADR-0001), so approval happens *before* the build dispatch.
 
 For `--tasks <file>`: **validate first.** Read the file; if any entry is not a
-`{id,spec}` object, **reject** with: "tasks must be `[{id,spec}]` objects — bare strings are
+`{id,spec}` object, **reject** with: "tasks must be `[{id,spec}]` objects, bare strings are
 silently dropped (see `${CLAUDE_PLUGIN_ROOT}/reference/task-list.md`)." If `--thorough` was
 also passed, **warn**: "`--thorough` is ignored in --tasks mode (the completeness critic runs
 in goal mode only)." Then skip to dispatch.
 
 ## Dispatch (the build)
-Default args (product defaults — `implementer:"claude"` so a clean install needs no external CLI):
+Default args (product defaults, `implementer:"claude"` so a clean install needs no external CLI):
 ```
 Workflow({ name:'ultrapowers-development', args:{
   // one of:
@@ -506,13 +506,13 @@ Workflow({ name:'ultrapowers-development', args:{
 > freshly-installed session), dispatch the same args with
 > `scriptPath: '${CLAUDE_PLUGIN_ROOT}/workflow/ultrapowers-development.js'` instead of `name`.
 
-## GATE 2 — critical review (on return)
+## GATE 2, critical review (on return)
 Surface the final JSON + the per-model token/cost report. If the result sets
 `needsHuman:true`, `integration.approved === false`, or a `stopped`/`degraded`/`BLOCKED`
 flag, present it and ask: **accept / send back / raise the model ceiling?** Otherwise report
 the green summary (tasks built, tests, re-witness outcomes).
 
-## Reference (Read on demand — don't preload)
+## Reference (Read on demand, don't preload)
 - task-list format + footgun → `${CLAUDE_PLUGIN_ROOT}/reference/task-list.md`
 - engine args + model routing → `${CLAUDE_PLUGIN_ROOT}/reference/harness.md`
 - re-witness RED (mechanism + evidence caveat) → `${CLAUDE_PLUGIN_ROOT}/reference/re-witness-red.md`
@@ -533,7 +533,7 @@ git commit -m "feat(plugin): rename /ultrapowers -> /workflows-driven-developmen
 
 ---
 
-### Task 6: SECURITY.md (P0 — unattended code execution)
+### Task 6: SECURITY.md (P0, unattended code execution)
 
 **Files:**
 - Create: `SECURITY.md`
@@ -578,10 +578,10 @@ git commit -m "docs: add SECURITY.md (unattended code-execution disclosure)"
 
 **Files:**
 - Create: `tests/check-engine.sh` (engine syntax-check helper)
-- Modify: `package.json` (`scripts.check` — fix the broken `node --check`)
+- Modify: `package.json` (`scripts.check`, fix the broken `node --check`)
 - (verification only otherwise; may touch `README.md`/`HANDOFF.md` for install docs)
 
-> **Plan correction (engine validation):** the engine is a **Workflow-format** script — it has
+> **Plan correction (engine validation):** the engine is a **Workflow-format** script, it has
 > top-level `return`/`await` (valid in the runtime's async wrap) plus `export const meta`, so it
 > is neither a pure ESM module nor CommonJS. Stock `node --check` **rejects it** ("Illegal return
 > statement" at the top-level `return`). The correct syntax check strips the `export` keyword and
@@ -607,7 +607,7 @@ node --input-type=commonjs -e '
 Run: `bash tests/check-engine.sh`
 Expected: `engine syntax ok`.
 
-- [ ] **Step 2: Fix `package.json` `scripts.check`** — change `"check": "node --check workflow/ultrapowers-development.js"` to `"check": "bash tests/check-engine.sh"`. Verify: `node -e 0` not needed — run `bash tests/check-engine.sh` (already green above).
+- [ ] **Step 2: Fix `package.json` `scripts.check`**, change `"check": "node --check workflow/ultrapowers-development.js"` to `"check": "bash tests/check-engine.sh"`. Verify: `node -e 0` not needed, run `bash tests/check-engine.sh` (already green above).
 
 - [ ] **Step 3: Engine + all JSON valid**
 
@@ -650,14 +650,14 @@ git add tests/check-engine.sh package.json README.md HANDOFF.md 2>/dev/null; git
 
 ---
 
-### Task 8: NOTICE legal name (user decision — do not invent)
+### Task 8: NOTICE legal name (user decision, do not invent)
 
 **Files:**
 - Modify: `NOTICE:29`
 
-- [ ] **Step 1: Resolve the legal-name TODO — ASK the user**
+- [ ] **Step 1: Resolve the legal-name TODO, ASK the user**
 
-`NOTICE:29` reads: *"Maintainer note: set your own legal name / org in LICENSE and in the copyright line above before any public release."* This is a **P0 pre-launch blocker** and a **legal identity decision** — do not guess a name. Ask the user: *"For LICENSE/NOTICE copyright, ship as `Lucian (@7xuanlu)` or a different legal name/org?"* Apply their answer to `NOTICE` (copyright line + remove the maintainer-note TODO) and `LICENSE`.
+`NOTICE:29` reads: *"Maintainer note: set your own legal name / org in LICENSE and in the copyright line above before any public release."* This is a **P0 pre-launch blocker** and a **legal identity decision**, do not guess a name. Ask the user: *"For LICENSE/NOTICE copyright, ship as `Lucian (@7xuanlu)` or a different legal name/org?"* Apply their answer to `NOTICE` (copyright line + remove the maintainer-note TODO) and `LICENSE`.
 
 - [ ] **Step 2: Commit**
 

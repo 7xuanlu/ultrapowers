@@ -1,4 +1,4 @@
-# Metering — empirical findings (`claude -p`)
+# Metering, empirical findings (`claude -p`)
 
 Resolves the `TODO(real-cli)` token-field question in `bench/run.sh` and **corrects** the
 fairness critique's A2 fear. Measured 2026-06-14 against the live CLI.
@@ -15,13 +15,13 @@ fairness critique's A2 fear. Measured 2026-06-14 against the live CLI.
 
 Test: a `claude -p` that spawns one Task subagent, captured with `--output-format stream-json --verbose`.
 
-- **All `assistant` stream messages were tagged MAIN** — the subagent's *own* turns do **not**
+- **All `assistant` stream messages were tagged MAIN**, the subagent's *own* turns do **not**
   appear as separate stream messages with per-message `usage`. Only the Task **result** comes back
   as a `user` message carrying `parent_tool_use_id`.
 - **Yet `result.total_cost_usd` rose $0.30 → $0.40 and `result.usage.output` rose 5 → 208** once the
-  subagent ran — i.e. `result.usage` / `total_cost_usd` / `modelUsage` **include** the subagent's work.
+  subagent ran, i.e. `result.usage` / `total_cost_usd` / `modelUsage` **include** the subagent's work.
 
-**Implication — opposite of fairness-critique A2.** A2 feared `result.total_cost_usd` *excludes*
+**Implication, opposite of fairness-critique A2.** A2 feared `result.total_cost_usd` *excludes*
 subagents (→ ~100× undercount) and mandated stream-summing with `parent_tool_use_id` dedup.
 Empirically the reverse holds: **the stream can't be summed for subagents (they aren't itemized),
 and `result.*` already rolls them up.** So:
@@ -34,7 +34,7 @@ ARM B (ultrapowers Workflow):       use the Workflow's reported subagent_tokens 
 ```
 
 Both arms are then comparable on **price-weighted cost (`$`)**, which is the meter that matters
-(F-controls already say: never compare raw token counts across arms — different model mixes).
+(F-controls already say: never compare raw token counts across arms, different model mixes).
 
 ## Cost reality (informs campaign sizing)
 

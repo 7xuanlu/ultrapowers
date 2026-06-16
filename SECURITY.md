@@ -18,7 +18,7 @@ across many disposable subagents, with human gates only at plan-approval and cri
   dangles harmlessly if the plugin is uninstalled).
 
 ## Reporting
-Report privately — **do not open a public issue** for a sensitive vulnerability.
+Report privately, **do not open a public issue** for a sensitive vulnerability.
 
 - **Preferred:** GitHub private vulnerability reporting on this repository
   (**Security → Report a vulnerability**). This requires the repo's private advisories to be

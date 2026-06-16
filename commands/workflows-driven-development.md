@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 User-only entry to the **ultrapowers** harness. Spends real tokens → never auto-invoked.
 You (the model running this command) own the two human gates and dispatch the deterministic
-Workflow engine. Do **not** re-implement the loop — dispatch the engine.
+Workflow engine. Do **not** re-implement the loop, dispatch the engine.
 
 ## Usage
 ```
@@ -21,13 +21,13 @@ Workflow engine. Do **not** re-implement the loop — dispatch the engine.
 Print the Usage block above, then: "default = one disciplined pass; `--thorough` adds a
 completeness critic that loops until no new findings (goal mode only). Built-in always-on:
 strict TDD, two-stage opus review (fail-closed), re-witness RED, per-task commit. Task-list
-format: see `${CLAUDE_PLUGIN_ROOT}/reference/task-list.md`. Cost scales with task count — each task runs an implementer plus two opus reviews (plus re-witness RED)." Then stop.
+format: see `${CLAUDE_PLUGIN_ROOT}/reference/task-list.md`. Cost scales with task count, each task runs an implementer plus two opus reviews (plus re-witness RED)." Then stop.
 
 ## Workspace isolation (do first, before any gate)
 If the target repo is on `main`/`master`, create a feature worktree/branch first
 (`EnterWorktree` or `git checkout -b feature/<goal-slug>`). The harness commits per task.
 
-## GATE 1 — plan approval (goal mode)
+## GATE 1, plan approval (goal mode)
 For a `<goal>`: dispatch planning only, then present the task list to the human.
 ```
 Workflow({ name:'ultrapowers-development', args:{ goal:<goal>, planOnly:true } })
@@ -36,14 +36,14 @@ Show the proposed tasks and ask: **Approve this plan / edit / abort?** Do not bu
 > A Workflow cannot pause mid-run (ADR-0001), so approval happens *before* the build dispatch.
 
 For `--tasks <file>`: **validate first.** Read the file; if any entry is not a
-`{id,spec}` object, **reject** with: "tasks must be `[{id,spec}]` objects — bare strings are
+`{id,spec}` object, **reject** with: "tasks must be `[{id,spec}]` objects, bare strings are
 silently dropped (see `${CLAUDE_PLUGIN_ROOT}/reference/task-list.md`)." If `--thorough` was
 also passed, **warn**: "`--thorough` is ignored in --tasks mode (the completeness critic runs
 in goal mode only)." Then skip to dispatch.
 
 ## Dispatch (the build)
-Default args (product defaults — `implementer:"claude"` so a clean install needs no external CLI):
-**Source `verifyCmd`** from the project's real test command (read its `package.json` scripts and any `CLAUDE.md`). Without it the deterministic gate is skipped and re-witness RED goes inert — if the project genuinely has no test command, say so at GATE 1 rather than silently running degraded.
+Default args (product defaults, `implementer:"claude"` so a clean install needs no external CLI):
+**Source `verifyCmd`** from the project's real test command (read its `package.json` scripts and any `CLAUDE.md`). Without it the deterministic gate is skipped and re-witness RED goes inert, if the project genuinely has no test command, say so at GATE 1 rather than silently running degraded.
 ```
 Workflow({ name:'ultrapowers-development', args:{
   // one of:
@@ -63,13 +63,13 @@ Workflow({ name:'ultrapowers-development', args:{
 > freshly-installed session), dispatch the same args with
 > `scriptPath: '${CLAUDE_PLUGIN_ROOT}/workflow/ultrapowers-development.js'` instead of `name`.
 
-## GATE 2 — critical review (on return)
+## GATE 2, critical review (on return)
 Surface the final JSON + the per-model token/cost report. If the result sets
 `needsHuman:true`, `integration.approved === false`, or a `stopped`/`degraded`/`BLOCKED`
 flag, present it and ask: **accept / send back / raise the model ceiling?** Otherwise report
 the green summary (tasks built, tests, re-witness outcomes).
 
-## Reference (Read on demand — don't preload)
+## Reference (Read on demand, don't preload)
 - task-list format + footgun → `${CLAUDE_PLUGIN_ROOT}/reference/task-list.md`
 - engine args + model routing → `${CLAUDE_PLUGIN_ROOT}/reference/harness.md`
 - re-witness RED (mechanism + evidence caveat) → `${CLAUDE_PLUGIN_ROOT}/reference/re-witness-red.md`
