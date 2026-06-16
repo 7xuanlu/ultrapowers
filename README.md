@@ -144,10 +144,10 @@ any goal or plan ─▶ UP /workflows-driven-development ─▶ reviewed branch 
   + writing-plans)            until the goal is met)                                          finishing-a-branch)
 ```
 
-It begins where you would otherwise reach for `subagent-driven-development`: same plan, same
+It begins where you would otherwise reach for `superpowers:subagent-driven-development`: same plan, same
 discipline, but on a flat coordinator, so a long, many-task build does not grow the controlling
 session. Superpowers is one
-good front end (its interactive friction is load-bearing) and `finishing-a-branch` is one good way
+good front end (its interactive friction is load-bearing) and `superpowers:finishing-a-development-branch` is one good way
 to take the output to merge, but neither is required.
 
 ## Benchmarks: measured, then projected
