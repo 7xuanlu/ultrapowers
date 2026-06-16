@@ -2,8 +2,8 @@
 
 `args.tasks` MUST be an array of `{id: string, spec: string}` objects.
 
-- `id` — short unique slug (e.g. `"db-open"`).
-- `spec` — the full task instruction (a rich multi-line string is fine).
+- `id`, short unique slug (e.g. `"db-open"`).
+- `spec`, the full task instruction (a rich multi-line string is fine).
 
 **Footgun (silent):** bare strings are **silently dropped**. The shape is never
 validated; the build loop filters out any entry lacking a truthy `.id`, so a list of

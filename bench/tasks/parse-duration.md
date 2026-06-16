@@ -1,6 +1,6 @@
-# Bench task (medium) — `parseDuration`
+# Bench task (medium), `parseDuration`
 
-> Fixed, fully-specified benchmark task. **Do not edit between runs** — both arms read the same
+> Fixed, fully-specified benchmark task. **Do not edit between runs**, both arms read the same
 > bytes (a `sha256sum` pre-flight in `run.sh` guards against drift). The matching machine-readable
 > task object lives in `bench/tasks.json` (the single source of truth handed to both arms); this
 > file is the human-readable spec it mirrors.
@@ -39,7 +39,7 @@ with the `TypeError` + message-substring check); watch RED; implement to GREEN.
 ## Constraints (so the quality reviewer has teeth)
 
 - No external dependencies. No regex catastrophic-backtracking on adversarial input.
-- Single responsibility: parser only — no CLI, no formatting helper, no exports beyond the default.
+- Single responsibility: parser only, no CLI, no formatting helper, no exports beyond the default.
 
 ## Verify
 

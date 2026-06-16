@@ -9,9 +9,9 @@ cannot pause mid-run for input, so human gates live in the command, before/after
 ## Args the command may pass
 | arg | default | meaning |
 |---|---|---|
-| `tasks` | — | `[{id,spec}]` pre-decomposed list (skips planning) |
-| `goal` | — | goal to decompose (planning mode) |
-| `verifyCmd` | — | deterministic test command (the gate) |
+| `tasks` |, | `[{id,spec}]` pre-decomposed list (skips planning) |
+| `goal` |, | goal to decompose (planning mode) |
+| `verifyCmd` |, | deterministic test command (the gate) |
 | `repoDir` | session cwd | absolute path to the target repo |
 | `commit` | false | per-task git commits (**required** for re-witness RED) |
 | `implementer` | `codex` (product passes `claude`) | implementer CLI: `claude`\|`codex`\|`gemini` |
