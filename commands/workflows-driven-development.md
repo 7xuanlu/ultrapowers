@@ -1,5 +1,5 @@
 ---
-description: "ultrapowers, the unattended SDD build harness: strict TDD, model-routed, two-stage fail-closed review, mechanical re-witness-RED. Human gates ONLY at plan approval + critical review. Complements superpowers."
+description: "ultrapowers: an unattended build workflow for Claude Code, built on superpowers. Hand it a goal; it plans, builds, and reviews each step. You approve the plan, then review the finished branch."
 disable-model-invocation: true
 ---
 

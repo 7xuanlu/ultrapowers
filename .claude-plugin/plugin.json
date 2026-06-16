@@ -1,7 +1,7 @@
 {
   "name": "ultrapowers",
   "version": "0.1.0",
-  "description": "Unattended SDD/TDD build harness — hands-off goal→plan→build with strict TDD, two-stage fail-closed review, and mechanical re-witness-RED. Complements superpowers by Jesse Vincent (@obra); does not replace it.",
+  "description": "An unattended build workflow for Claude Code. Hand it a goal and it plans, builds, and reviews the work step by step, then hands back a finished branch for your review. Built on and complements superpowers by Jesse Vincent (@obra); does not replace it.",
   "author": { "name": "Qi-Xuan Lu (@7xuanlu)" },
   "license": "MIT"
 }
