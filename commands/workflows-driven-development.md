@@ -1,5 +1,5 @@
 ---
-description: "ultrapowers: an unattended build workflow for Claude Code, built on superpowers. Hand it a goal; it plans, builds, and reviews each step. You approve the plan, then review the finished branch."
+description: "ultrapowers: hand it a goal and walk away. It plans, builds test-first, reviews every step, and hands back a branch you can trust. Built on superpowers."
 disable-model-invocation: true
 ---
 
