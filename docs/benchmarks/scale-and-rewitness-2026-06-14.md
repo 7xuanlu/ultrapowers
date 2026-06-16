@@ -4,7 +4,7 @@ Two questions the N=5 × 2-task campaign was too small to answer: (1) does the c
 divergence actually show up at scale, and (2) does re-witness RED catch anything a no-re-witness arm
 ships? Ran the 24-task `longtasks-docdb` fixture through both architectures, headless.
 
-- **superpowers (A):** `subagent-driven-development`, sonnet coordinator + sonnet impl + sonnet reviewers.
+- **superpowers (A):** `superpowers:subagent-driven-development`, sonnet coordinator + sonnet impl + sonnet reviewers.
 - **ultrapowers (B):** Workflow via scriptPath, sonnet impl + opus reviewers, re-witness ON.
 
 Both completed all 24 tasks green (A: 262 tests pass; B: 226 tests pass).

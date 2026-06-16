@@ -670,7 +670,7 @@ git commit -m "chore: set copyright legal name; close NOTICE pre-release TODO"
 
 ## Final integration review (after all tasks)
 
-Per the project's subagent-driven-development config: after the last task, dispatch a fresh
+Per the project's superpowers:subagent-driven-development config: after the last task, dispatch a fresh
 adversarial fresh-eye review of the integrated plugin before any merge to `main`. Check:
 manifests valid + discoverable; hook idempotent/no-clobber/repoint; engine moved with no
 dangling refs (3 call-sites reconciled); command is user-only with working `--tasks`
