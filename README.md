@@ -60,7 +60,7 @@ goal ─▶ plan
                ─▶ spec review  (capable model, fail-closed, "do not trust the report")
                ─▶ quality review (capable model, fail-closed, YAGNI/anti-gaming)
                ─▶ fix-loop
-        ─▶ dry-until-clean critic adds tasks until the goal is met
+        ─▶ dry-until-clean critic adds tasks until the goal is met (opt-in)
         ─▶ final adversarial integration review
         ⏸ GATE 2: every finding from the run surfaces to you, before merge
 ```
@@ -76,9 +76,12 @@ disposable subagents running on cheap, role-routed models.
 
 ## Why it exists
 
-ultrapowers stands on Superpowers by Jesse Vincent ([@obra](https://github.com/obra)). The
-discipline it runs (watch-it-fail TDD, two-stage fail-closed review, least-powerful-model routing)
-is Superpowers', adopted verbatim, with gratitude. See [`NOTICE`](./NOTICE).
+**Most of ultrapowers is Superpowers, and we do not pretend otherwise.** The build discipline it
+runs (watch-it-fail TDD, the two-stage fail-closed review, least-powerful-model routing) is
+Superpowers' work by Jesse Vincent ([@obra](https://github.com/obra)), embedded verbatim, with
+gratitude (see [`NOTICE`](./NOTICE)). Expect the same harness guarantees you would get from
+Superpowers on everything it covers, no more and no less. The parts that are ours, and where
+ultrapowers can do better, are spelled out below.
 
 Superpowers is prompt-driven and in-session by design, and obra has been deliberate about that.
 Asked whether orchestration should move to an external coordinator, he answered: *"It's purely
