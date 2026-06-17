@@ -223,6 +223,36 @@ it in-band.
 critic). **Report `B-full` separately; never average it with `B-parity`** (F14): its extra tokens
 buy the re-witness test-integrity guarantee, a feature comparison, not a cost-fairness comparison.
 
+### B-v5 vs B-v6 (merge A/B)
+
+Measures the cost/dispatch delta of the v6 engine rewrite relative to the pre-upgrade v5 baseline,
+without shipping any dead v5 code. Both arms mirror `B-parity` exactly — same `tasks.json`,
+`implementer:'claude'`, `implModel:'sonnet'`, `commit:true`, `redWitness:false`, tasks-only (no
+critic). The only difference is the engine path supplied to `scriptPath`:
+
+- **B-v5**: pre-upgrade engine materialized from git history via
+  `git show <PRE_UPGRADE_SHA>:workflow/ultrapowers-development.js` into a temp file. `PRE_UPGRADE_SHA`
+  is the merge-base of `main` and the upgrade branch (`bce9dc53b1d79bd5a6f7fdca94caf1f79a5e1ff1`).
+- **B-v6**: current engine at `workflow/ultrapowers-development.js` (the post-upgrade source of truth).
+
+**Primary metrics:**
+
+| Metric | Description |
+|---|---|
+| `reviewDispatches / task` | Count of `review-(task\|spec\|quality):` subagent labels per task — the v6 structural change merges two review stages, so this should drop from ~2/task (v5) to ~1/task (v6). |
+| `total_cost_usd` | Headline cost rollup (includes all subagents); derived from `result.total_cost_usd` in the transcript. |
+
+**Guard:** quality parity via the existing judge (same `src/` + `test/` collect + `verify.txt`
+output). A regression in `node --test` pass rate invalidates the cost saving.
+
+**Reporting requirements (N≥5):**
+
+1. Raw per-run table: `arm`, `run`, `reviewDispatches`, `total_cost_usd`, `wallMsScript`.
+2. Bootstrap CI (1000 resamples, 95%) on both primary metrics.
+3. Judge quality scores by arm (must be non-inferior: B-v6 ≥ B-v5 mean − 0.5 points).
+
+Run: `bash bench/run.sh --runs 5 --arms "B-v5 B-v6"`.
+
 ---
 
 ## 6. Token-accounting recipe
