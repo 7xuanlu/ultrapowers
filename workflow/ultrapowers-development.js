@@ -38,6 +38,17 @@ const REVIEW = { type: 'object', required: ['approved'], properties: {
   findings: { type: 'array', items: FINDING },
   strengths: { type: 'array', items: { type: 'string' } },
   assessment: { type: 'string' } } }
+// v6 merged task reviewer: one pass, one diff read, spec verdict + dimensioned findings.
+const TASK_REVIEW = { type: 'object', required: ['specVerdict', 'approved'], properties: {
+  specVerdict:  { enum: ['pass', 'fail', 'cannot_verify'] },
+  findings:     { type: 'array', items: { type: 'object', required: ['severity', 'dimension', 'issue'], properties: {
+                    severity:  { enum: ['critical', 'important', 'minor'] },
+                    dimension: { enum: ['spec', 'quality'] },
+                    issue: { type: 'string' }, fix: { type: 'string' } } } },
+  cannotVerify: { type: 'array', items: { type: 'string' } },
+  strengths:    { type: 'array', items: { type: 'string' } },
+  assessment:   { type: 'string' },
+  approved:     { type: 'boolean' } } }
 // N8: verify returns the RAW exit code (harness compares ===0) — haiku copies an integer, never judges pass/fail.
 const VERIFY = { type: 'object', required: ['code'], properties: { code: { type: 'integer' }, tail: { type: 'string' } } }
 const REDWITNESS = { type: 'object', required: ['applicable', 'redWitnessed'], properties: {
@@ -433,78 +444,39 @@ async function redWitness(task, baseSha) {
   return w || { applicable: false }
 }
 
-// ---- reviewers (SDD-faithful prompts, fail-closed) ----
-
-// Spec-compliance reviewer — sourced from superpowers spec-reviewer-prompt.md.
-// Key SDD principle: "CRITICAL: Do Not Trust the Report."
-async function reviewSpec(task, r, baseSha) {
-  const diffCmd = baseSha ? `\`${GIT} diff ${baseSha}..HEAD\`` : `\`${GIT} diff\` / \`${GIT} status\``
+// ---- merged reviewer (SDD v6 task-reviewer-prompt.md, fail-closed) ----
+// One opus pass reads this task's SCOPED diff once and returns a spec verdict + code-quality
+// findings. Blocking is still severity-derived (critical|important); specVerdict='fail' is an
+// UNCONDITIONAL controller-level block enforced in buildTask (H1). cannot_verify items never block
+// here — they route to the integration review (H3).
+async function reviewTask(task, r, baseSha, diffFile) {
+  const diffSrc = diffFile
+    ? `the review package at ${diffFile} (commit list + stat + the full -U10 diff). Read it ONCE; the diff's context lines ARE the changed files. If the file is missing, run \`${GIT} diff ${baseSha}..HEAD\` yourself.`
+    : (baseSha ? `\`${GIT} diff ${baseSha}..HEAD\` (this task's changes only)` : `\`${GIT} diff\` / \`${GIT} status\``)
   const prompt =
-    `You are reviewing whether an implementation matches its specification.` + REPO_NOTE + `\n\n` +
+    `You are reviewing ONE task's implementation: first whether it matches its requirements, then whether it is well-built. Task-scoped gate, not a merge review.` + REPO_NOTE + `\n\n` +
     `## What Was Requested\n${task.spec}\n\n` +
-    `## What Implementer Claims\nFiles: ${JSON.stringify(r.files || [])}. Summary: ${r.summary || 'none'}.\n\n` +
-    `## CRITICAL: Do Not Trust the Report\n` +
-    `The implementer finished suspiciously quickly. Their report may be incomplete, inaccurate, or optimistic. You MUST verify independently.\n` +
-    `DO NOT take their word for what they implemented. DO NOT accept their interpretation of requirements. DO NOT trust claims about completeness.\n` +
-    `DO: Read the actual code. Compare actual implementation to requirements LINE BY LINE.\n` +
-    `Check for missing pieces they claimed to implement. Look for extra features they didn't mention.\n\n` +
-    `## Verify by reading code, not by trusting report\n` +
-    `Inspect THIS TASK's changes using ${diffCmd} (scoped to this task only, not prior tasks). Also read the changed files directly.\n\n` +
-    `Check:\n` +
-    `- **Missing requirements:** Did they implement everything? Requirements they skipped?\n` +
-    `- **Extra/unneeded work:** Did they build things not requested? Over-engineer? Add "nice-to-haves" not in spec?\n` +
-    `- **Misunderstandings:** Did they interpret requirements differently? Solve wrong problem?\n` +
-    `- **TDD compliance:** Did they write tests? Do tests actually verify the spec's acceptance criteria?\n\n` +
-    `## Output — calibrated severity (SDD: not everything is Critical; acknowledge what was done well)\n` +
-    `Categorize EACH finding: **critical** = a spec requirement is missing or wrong (acceptance criteria not met); ` +
-    `**important** = spec partially met, OR unrequested/over-built behavior added; **minor** = nit/style-adjacent.\n` +
-    `Return {approved, findings:[{severity, issue (with file:line), fix}], strengths:[...], assessment}.\n` +
-    `Set approved=false if ANY critical or important finding exists; if only minor (or none), approved=true. Be specific and actionable.`
+    `## What Implementer Claims\nFiles: ${JSON.stringify(r.files || [])}. Summary: ${r.summary || 'none'}.` +
+    (r.tddEvidence ? ` TDD evidence — RED: ${r.tddEvidence.red || 'n/a'}; GREEN: ${r.tddEvidence.green || 'n/a'}.` : '') + `\n\n` +
+    `## Do Not Trust the Report\n` +
+    `Treat the implementer's report as unverified claims. Verify against the diff. Design rationales in the report are claims too: "left it per YAGNI", "kept it simple deliberately" — a stated rationale NEVER downgrades a finding's severity. Judge the code on its merits.\n\n` +
+    `## Your view of the change\nInspect ${diffSrc} Do NOT crawl the broader codebase; inspect code outside the diff only to evaluate a concrete risk you can name.\n` +
+    `Your review is READ-ONLY on this checkout: do NOT mutate the working tree, the index, or HEAD.\n\n` +
+    `## Part 1: Spec Compliance\nCompare the diff against What Was Requested:\n` +
+    `- Missing: requirements skipped/claimed-but-not-implemented\n- Extra: unrequested features, over-engineering\n- Misunderstood: right feature built wrong, wrong problem solved\n` +
+    `If a requirement CANNOT be verified from this diff alone (it lives in unchanged code or spans tasks), report it as a cannot_verify item instead of broadening your search.\n\n` +
+    `## Part 2: Code Quality\n- Clean separation of concerns? Proper error handling? DRY without premature abstraction? Edge cases?\n` +
+    `- Tests: do new/changed tests verify REAL behavior (not mocks)? Are the task's edge cases covered?\n` +
+    `- Structure: one clear responsibility per file? Units independently testable? Did this change create already-large files or significantly grow existing ones (judge only what THIS change contributed)?\n` +
+    `- Anti-gaming (any of these is a critical finding): weakened/deleted existing tests to force green; edited the gate/verify config to force green; placeholders/stubs/TODOs claiming done; test-only methods on production classes; tests mocking behavior instead of testing it.\n\n` +
+    `## Tests\nThe implementer already ran the suite and reported results. Do NOT re-run the full suite to confirm. Run a focused test only if reading the code raises a specific named doubt — never a package-wide suite. Warnings/noise in the reported output ARE findings.\n\n` +
+    `## Calibration\nNot everything is Critical. critical = incorrect behavior, a missed requirement, or maintainability damage you would block a merge over (verbatim duplication of a logic block, swallowed errors, tests that assert nothing) OR an anti-gaming violation. important = fragile code, partially-met spec, unrequested/over-built behavior, missing error handling. minor = coverage-could-be-broader, polish. Acknowledge strengths before listing issues.\n\n` +
+    `## Output\nReturn {specVerdict, findings:[{severity, dimension:'spec'|'quality', issue (with file:line), fix}], cannotVerify:[<requirement + what the controller should check>], strengths:[...], assessment}.\n` +
+    `specVerdict='pass' if spec is fully met in the diff; 'fail' if a requirement is missing/extra/misunderstood (a 'fail' MUST be accompanied by at least one critical|important spec-dimension finding); 'cannot_verify' ONLY for requirements outside the diff (also list them in cannotVerify). Set approved=true ONLY if specVerdict!=='fail' AND no critical|important findings.`
   for (let k = 0; k <= REVIEW_RETRY; k++) {
-    const rev = await agent(prompt, { label: `review-spec:${task.id}#${k + 1}`, phase: `task:${task.id}`, model: 'opus', schema: REVIEW })
+    const rev = await agent(prompt, { label: `review-task:${task.id}#${k + 1}`, phase: `task:${task.id}`, model: 'opus', schema: TASK_REVIEW })
     if (rev) return rev
-    log(`spec reviewer errored on ${task.id} (${k + 1}/${REVIEW_RETRY + 1})`)
-  }
-  return { approved: false, unavailable: true }   // FAIL CLOSED
-}
-
-// Code-quality reviewer — sourced from superpowers code-quality-reviewer-prompt.md.
-// Runs ONLY after spec-compliance passes (SDD: "Only dispatch after spec compliance review passes").
-async function reviewQuality(task, r, baseSha) {
-  const diffCmd = baseSha ? `\`${GIT} diff ${baseSha}..HEAD\`` : `\`${GIT} diff\` / \`${GIT} status\``
-  const prompt =
-    `You are reviewing code quality for task ${task.id}. Spec compliance ALREADY PASSED — do not re-check spec.` + REPO_NOTE + `\n\n` +
-    `## What Changed\nFiles: ${JSON.stringify(r.files || [])}. Summary: ${r.summary || 'none'}.\n\n` +
-    `## CRITICAL: Do Not Trust the Report — inspect the code yourself\n` +
-    `Use ${diffCmd} to see ONLY this task's changes (not prior tasks). Read the actual code. Check:\n\n` +
-    `**Code quality:**\n` +
-    `- Idioms, naming, dead code, error handling\n` +
-    `- Does each file have one clear responsibility with a well-defined interface?\n` +
-    `- Are units decomposed so they can be understood and tested independently?\n` +
-    `- Is the code clean and maintainable? Are names clear and accurate?\n\n` +
-    `**YAGNI / over-build (SDD: "Did I avoid overbuilding?"):**\n` +
-    `- Did they build things not requested? Add unnecessary abstractions?\n` +
-    `- Did they add "nice to haves" or future-proofing not in the spec?\n\n` +
-    `**Anti-gaming (REJECT if any):**\n` +
-    `- Implementer weakened/deleted existing tests to force green\n` +
-    `- Implementer edited gate/verify config to force the gate green\n` +
-    `- Left placeholders/stubs/TODOs claiming "done"\n` +
-    `- Added test-only methods to production classes\n` +
-    `- Tests mock behavior instead of testing real behavior\n\n` +
-    `**Testing quality:**\n` +
-    `- Do tests verify behavior (not mock behavior)?\n` +
-    `- Are tests comprehensive for the acceptance criteria?\n` +
-    `- Did tests follow TDD (evidence of red-green-refactor in commit history)?\n\n` +
-    `**File growth / structure:** Did this change create already-large files or significantly grow existing ones? Does it follow the planned file structure?\n\n` +
-    `## Output — calibrated severity (SDD: not everything is Critical; acknowledge strengths)\n` +
-    `Categorize EACH finding: **critical** = anti-gaming violation (weakened tests / edited gate / placeholder claiming done) or a real correctness/maintainability defect; ` +
-    `**important** = YAGNI/over-build, poor decomposition, missing error handling; **minor** = naming/style nit.\n` +
-    `Return {approved, findings:[{severity, issue (with file:line), fix}], strengths:[...], assessment}.\n` +
-    `Set approved=false if ANY critical or important finding exists; minor-only (or none) => approved=true.`
-  for (let k = 0; k <= REVIEW_RETRY; k++) {
-    const rev = await agent(prompt, { label: `review-quality:${task.id}#${k + 1}`, phase: `task:${task.id}`, model: 'opus', schema: REVIEW })
-    if (rev) return rev
-    log(`quality reviewer errored on ${task.id} (${k + 1}/${REVIEW_RETRY + 1})`)
+    log(`task reviewer errored on ${task.id} (${k + 1}/${REVIEW_RETRY + 1})`)
   }
   return { approved: false, unavailable: true }   // FAIL CLOSED
 }
@@ -565,6 +537,7 @@ async function triageConcerns(task, r) {
 // so a later fix can't silently regress an earlier gate. SDD order: spec before quality.
 async function buildTask(task) {
   const baseSha = await captureHead(task.id)   // B3: snapshot before this task's changes
+  let diffFile = null   // Task 7 will assign a scoped diff package path; reviewTask falls back to git diff
   let r = await implement(task)
   r = await triageConcerns(task, r)     // N3: address self-flagged correctness/scope concerns before review
   if (r.status === 'blocked' || r.status === 'needs_context') return await escalateBlocked(task, r)   // N2
@@ -587,33 +560,29 @@ async function buildTask(task) {
       continue
     }
 
-    // N1: spec review first — only critical/important findings block; minor findings are logged, not fixed.
-    const spec = await reviewSpec(task, r, baseSha)
-    if (spec.unavailable) return { task: task.id, ok: false, reason: 'spec-review-unavailable', needsHuman: true, by: r.by }
-    const specBlock = blocking(spec)
-
-    // SDD: quality review runs ONLY after spec passes. Collect its blocking findings when it does.
-    let qual = null, qualBlock = []
-    if (!specBlock.length) {
-      qual = await reviewQuality(task, r, baseSha)
-      if (qual.unavailable) return { task: task.id, ok: false, reason: 'quality-review-unavailable', needsHuman: true, by: r.by }
-      qualBlock = blocking(qual)
-      if (!qualBlock.length) {
-        allMinors.push(...minorsOf(spec), ...minorsOf(qual))
-        return { task: task.id, ok: true, by: r.by, rounds: i + 1, selfReviewed: r.by === 'claude-fallback' || r.by === 'claude' || r.by === 'claude-escalated', concerns: r.concerns || null, minors: allMinors.length ? allMinors : null }
-      }
+    // v6 merged review: one pass returns spec verdict + dimensioned findings.
+    const rev = await reviewTask(task, r, baseSha, diffFile)
+    if (rev.unavailable) return { task: task.id, ok: false, reason: 'review-unavailable', needsHuman: true, by: r.by }
+    // H1: specVerdict='fail' is an UNCONDITIONAL block, independent of finding severity.
+    const specFail = rev.specVerdict === 'fail'
+    const blk = blocking(rev)
+    if (!specFail && !blk.length) {
+      allMinors.push(...minorsOf(rev))
+      const cv = (rev.cannotVerify || []).filter(Boolean)
+      return { task: task.id, ok: true, by: r.by, rounds: i + 1,
+        selfReviewed: r.by === 'claude-fallback' || r.by === 'claude' || r.by === 'claude-escalated',
+        concerns: r.concerns || null, minors: allMinors.length ? allMinors : null,
+        cannotVerify: cv.length ? cv : null }
     }
-
-    // We have blocking findings (spec or quality). #2 progress check BEFORE spending another fix round —
-    // if the blocking count is NOT shrinking across consecutive rounds, the implementer is thrashing. SDD:
-    // "after repeated failed fixes, stop and question" — escalate with the stuck findings rather than silently
-    // burning the remaining rounds on the same wall.
-    const stuck = [...specBlock, ...qualBlock]
-    stall = (stuck.length >= prevBlock) ? stall + 1 : 0
-    prevBlock = stuck.length
-    lastStuck = fmtFindings(stuck)
+    // Blocking (spec-fail or severity finding). Thrash guard counts blocking findings; a bare
+    // spec-fail with no findings still counts as 1 so the guard can make progress.
+    const stuck = [...blk]
+    const stuckCount = stuck.length || (specFail ? 1 : 0)
+    stall = (stuckCount >= prevBlock) ? stall + 1 : 0
+    prevBlock = stuckCount
+    lastStuck = stuck.length ? fmtFindings(stuck) : ['spec verdict = fail (no specific finding returned — re-read the spec and implement the missing/correct behavior)']
     if (stall >= 2) {
-      log(`${task.id}: NO PROGRESS — ${stuck.length} blocking finding(s) not shrinking over consecutive rounds; escalating to human instead of burning the remaining fix round(s)`)
+      log(`${task.id}: NO PROGRESS — ${stuckCount} blocking finding(s) not shrinking; escalating instead of burning fix rounds`)
       return { task: task.id, ok: false, reason: 'no-progress', needsHuman: true, by: r.by, stuckFindings: lastStuck }
     }
     r = await implement(task, lastStuck, r)
