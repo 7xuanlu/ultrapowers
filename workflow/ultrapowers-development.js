@@ -55,7 +55,6 @@ const VERIFY = { type: 'object', required: ['code'], properties: { code: { type:
 const REDWITNESS = { type: 'object', required: ['applicable', 'redWitnessed'], properties: {
   applicable: { type: 'boolean' }, redWitnessed: { type: 'boolean' }, detail: { type: 'string' } } }
 const PREFLIGHT = { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, detail: { type: 'string' } } }
-const DONELIST = { type: 'object', required: ['done'], properties: { done: { type: 'array', items: { type: 'string' } } } }
 const RESUME = { type: 'object', required: ['done'], properties: {
   done: { type: 'array', items: { type: 'string' } },
   cannotVerify: { type: 'array', items: { type: 'object', required: ['task', 'items'], properties: {
@@ -507,11 +506,10 @@ async function captureHead(taskId) {
 const PKG = { type: 'object', required: ['path'], properties: { path: { type: 'string' }, detail: { type: 'string' } } }
 async function reviewPackage(task, baseSha) {
   if (!baseSha) return null
-  const dir = repoDir ? `${repoDir}/.git/sdd` : '.git/sdd'
   const p = await agent(
     `Write this task's review package to a file with Bash, then return its path.` + REPO_NOTE + `\n` +
-    `STEP 1: \`mkdir -p ${dir}\`.\n` +
-    `STEP 2: set OUT="${dir}/review-${task.id}.diff" and write into it, in order: the commit list (\`${GIT} log --oneline ${baseSha}..HEAD\`), a stat summary (\`${GIT} diff --stat ${baseSha}..HEAD\`), then the full diff (\`${GIT} diff -U10 ${baseSha}..HEAD\`). Do NOT modify any tracked file.\n` +
+    `STEP 1: \`SDD="$(${GIT} rev-parse --git-path sdd)"; mkdir -p "$SDD"\`.\n` +
+    `STEP 2: set OUT="$SDD/review-${task.id}.diff" and write into it, in order: the commit list (\`${GIT} log --oneline ${baseSha}..HEAD\`), a stat summary (\`${GIT} diff --stat ${baseSha}..HEAD\`), then the full diff (\`${GIT} diff -U10 ${baseSha}..HEAD\`). Do NOT modify any tracked file.\n` +
     `Return {path:"<OUT>"}.`,
     { label: `review-package:${task.id}`, phase: `task:${task.id}`, model: 'haiku', schema: PKG })
   return (p && p.path) || null
@@ -558,8 +556,8 @@ async function triageConcerns(task, r) {
   return r
 }
 
-// One task end-to-end. Each fix-round re-runs the full ladder (gate -> spec -> quality)
-// so a later fix can't silently regress an earlier gate. SDD order: spec before quality.
+// One task end-to-end. Flow: gate -> re-witness RED -> merged reviewTask (spec + quality in one pass).
+// Each fix-round re-runs the full ladder so a later fix can't silently regress an earlier gate.
 async function buildTask(task) {
   const baseSha = await captureHead(task.id)   // B3: snapshot before this task's changes
   let diffFile = null   // Task 7 will assign a scoped diff package path; reviewTask falls back to git diff
@@ -665,7 +663,7 @@ async function checkpoint(res) {
     `Append exactly one line to ${logFile} (create dirs/file if needed) with Bash, then stop:\n` +
     `${JSON.stringify({ id: res.task, ok: res.ok, by: res.by || null, reason: res.reason || null, cannotVerify: res.cannotVerify || [] })}\n` +
     `Use: printf '%s\\n' '<the json>' >> ${logFile}` +
-    (res.ok ? `\nAlso append a human-readable ledger line to ${repoDir ? `${repoDir}/.git/sdd` : '.git/sdd'}/progress.md (create the dir/file if needed): \`Task ${res.task}: complete (review clean)\`.` : ''),
+    (res.ok ? `\nAlso append a human-readable ledger line to progress.md in the sdd dir: \`SDD="$(${GIT} rev-parse --git-path sdd)"; mkdir -p "$SDD"; echo "Task ${res.task}: complete (review clean)" >> "$SDD/progress.md"\`.` : ''),
     { label: `checkpoint:${res.task}`, phase: `task:${res.task}`, model: 'haiku' })
 }
 
