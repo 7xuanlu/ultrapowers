@@ -717,6 +717,7 @@ const alreadyDone = await loadDone()
 const seen = new Set()
 const results = []
 let round = 0, lastGaps = [], builtCount = 0, stopReason = null
+const accCannotVerify = []   // [{task, items}] — ⚠️ items from passing tasks, resolved at integration (H3)
 const lowOnBudget = () => (typeof budget !== 'undefined' && budget.total) ? budget.remaining() < BUDGET_RESERVE : false
 // N10: make the budget guard's status visible instead of silently inert.
 if (typeof budget === 'undefined' || !budget || !budget.total) log('note: no runtime budget ceiling — maxTasks is the only runaway guard')
@@ -742,6 +743,7 @@ while (queue.length && round < MAX_ROUNDS) {
     }
     await checkpoint(res)
     results.push(res)
+    if (res.ok && res.cannotVerify && res.cannotVerify.length) accCannotVerify.push({ task: res.task, items: res.cannotVerify })
     builtCount++
   }
   if (stopReason) { log(`STOP: ${stopReason} ceiling hit after ${builtCount} task(s)`); break }
@@ -803,6 +805,7 @@ return {
   resumed:      done.filter(x => x.resumed).map(x => x.task),
   concerns:     done.filter(x => x.concerns).map(x => ({ task: x.task, concerns: x.concerns })),
   minors:       done.filter(x => x.minors).map(x => ({ task: x.task, minors: x.minors })),   // N1: non-blocking nits, logged not fixed
+  cannotVerify: accCannotVerify,
   degraded,
   integration,
   sp,                                                                            // {pinned, installed, drift} — embedded-prompt staleness vs installed superpowers
