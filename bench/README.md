@@ -392,6 +392,45 @@ arm labels and `[task:…]`-style commit hints are stripped before judging. Aggr
 
 ---
 
+## 8.2 Safety-path fixture (B-v6 only, H4)
+
+`bench/safety-run.sh` is a second fixture that exercises the v6 engine's risky paths. It is
+**B-v6 only** — these paths do not exist in v5 — and asserts **pass/fail outcomes, not cost**.
+
+### What it covers
+
+| Scenario | Task ID | Assertion |
+|---|---|---|
+| `cannot_verify` routing | `cross-task-coupled` | `result.cannotVerify` must be non-empty |
+| Spec-fail block | `spec-incomplete` | `"spec-incomplete"` must NOT appear in `result.passed` |
+| Multi-commit `BASE..HEAD` | `config-module` + `cross-task-coupled` | Integration review sees ≥2 commits; ⚠️ checklist item must surface |
+
+The three tasks live in `bench/fixtures/safety-tasks.json`. Human-readable mirrors:
+
+- `bench/tasks/cross-task-coupled.md` — cross-task coupling that triggers `cannotVerify`
+- `bench/tasks/multi-commit.md` — documents the multi-commit integration scenario
+- `bench/tasks/spec-incomplete.md` — intentionally omissible export for spec-fail testing
+
+### Running
+
+```bash
+# syntax check + offline file-shape assertions only (no claude required):
+bash -n bench/safety-run.sh
+bash bench/safety-run.sh   # exits 0 with "skipping live run" if claude not on PATH
+
+# live run (requires claude CLI + Workflow):
+bash bench/safety-run.sh
+# → "safety-path ok" on success
+```
+
+### What it does NOT measure
+
+This fixture measures correctness of the safety paths, not token cost or quality. Do not cross-compare
+its outcomes against the cost metrics in `§5` / `§6`. Cost measurements for B-v5 vs B-v6 use the
+standard `bench/run.sh --arms "B-v5 B-v6"` harness with `bench/tasks.json`.
+
+---
+
 ## What this can and cannot prove
 
 **CAN prove (survives every fairness attack):**
