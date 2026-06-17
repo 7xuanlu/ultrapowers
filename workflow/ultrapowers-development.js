@@ -780,6 +780,7 @@ if (passedIds.length) {
     `Adversarial fresh-eye review of the ENTIRE integrated implementation (tasks: ${passedIds.join(', ')}).` + REPO_NOTE +
     (goal ? ` GOAL:\n${goal}\n` : ' ') +
     (finalGate ? `FIRST, run the FULL verify suite as the final gate (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS}): \`${finalGate}\`. If it exits non-zero OR times out, set approved:false with a CRITICAL finding quoting the failure — a red suite blocks integration no matter how clean the code looks.\n\n` : '') +
+    (accCannotVerify.length ? `\n\nRESOLVE THESE cross-task / unchanged-code requirements the per-task reviewers could NOT verify from their scoped diffs. For EACH, confirm it is actually satisfied in the whole tree; if any is a real gap, set approved:false with a critical finding:\n${accCannotVerify.flatMap(c => c.items.map(it => `- [${c.task}] ${it}`)).join('\n')}\n` : '') +
     `Inspect the full working tree (\`${GIT} diff\`/\`${GIT} status\`, read files). Look for:\n` +
     `- Cross-task regressions, inconsistent interfaces, duplicated logic\n` +
     `- Broken assumptions no single-task review would catch\n` +
@@ -792,9 +793,12 @@ if (passedIds.length) {
 const failedList    = done.filter(x => !x.ok)
 const needsHumanList = done.filter(x => x.needsHuman)
 // N12: a single top-level safety flag for unattended callers — integration.approved===false now GATES.
+// H3: a non-empty cannotVerify must be explicitly cleared by the integration review; anything
+// short of integration.approved===true (including a null/errored integration) is fail-closed.
+const cvUnresolved = accCannotVerify.length > 0 && (!integration || integration.approved !== true)
 const ok = failedList.length === 0 && needsHumanList.length === 0 &&
            (!integration || integration.approved !== false) &&
-           !stopReason && !roundCapped && !degraded
+           !cvUnresolved && !stopReason && !roundCapped && !degraded
 
 return {
   ok,                                                                            // N12: safe-to-merge unattended? (all green + integration approved + no ceilings/escalations)
@@ -805,8 +809,8 @@ return {
   stopped:      stopReason,
   openGaps:     (roundCapped || stopReason) ? lastGaps : [],
   passed:       passedIds,
-  failed:       done.filter(x => !x.ok).map(x => ({ task: x.task, reason: x.reason, needsHuman: x.needsHuman || false, ...(x.stuckFindings ? { stuckFindings: x.stuckFindings } : {}) })),
-  needsHuman:   done.filter(x => x.needsHuman).map(x => x.task),
+  failed:       [...done.filter(x => !x.ok).map(x => ({ task: x.task, reason: x.reason, needsHuman: x.needsHuman || false, ...(x.stuckFindings ? { stuckFindings: x.stuckFindings } : {}) })), ...(cvUnresolved ? [{ task: 'cross-task', reason: 'unverified-cross-task', needsHuman: true }] : [])],
+  needsHuman:   [...done.filter(x => x.needsHuman).map(x => x.task), ...(cvUnresolved ? ['cross-task'] : [])],
   fallbacks:    done.filter(x => x.by === 'claude-fallback').map(x => x.task),
   escalated:    done.filter(x => x.by === 'claude-escalated').map(x => x.task),
   selfReviewed: done.filter(x => x.selfReviewed).map(x => x.task),
