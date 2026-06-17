@@ -401,15 +401,32 @@ arm labels and `[task:…]`-style commit hints are stripped before judging. Aggr
 
 | Scenario | Task ID | Assertion |
 |---|---|---|
-| `cannot_verify` routing | `cross-task-coupled` | `result.cannotVerify` must be non-empty |
-| Spec-fail block | `spec-incomplete` | `"spec-incomplete"` must NOT appear in `result.passed` |
-| Multi-commit `BASE..HEAD` | `config-module` + `cross-task-coupled` | Integration review sees ≥2 commits; ⚠️ checklist item must surface |
+| `cannot_verify` routing | `cross-task-coupled` | `result.cannotVerify` must be non-empty (**probabilistic** — see note below) |
+| `cannot_verify` → integration gate | `cross-task-coupled` | If `cannotVerify` non-empty: `result.integration != null` AND (`result.integration != null` OR `"cross-task" ∈ result.needsHuman`) |
+| Spec-fail block | `spec-incomplete` | `"spec-incomplete"` must NOT appear in `result.passed` AND must appear in `result.failed[].task` or `result.needsHuman` |
+| Per-task baseSha diff scoping | `config-module` + `cross-task-coupled` | Structural coupling is real (config-module's commit is outside cross-task-coupled's reviewPackage); triggers the `cannotVerify` path above |
+
+> **Probabilistic assertion note (C1):** The structural coupling in the `cross-task-coupled` →
+> `config-module` pair is architecturally real: the engine scopes each per-task review to that
+> task's own `baseSha..HEAD` via `reviewPackage`, so `src/config.js` is **outside** the reviewer's
+> diff slice. However, whether the LLM reviewer actually emits a `cannot_verify` item is
+> non-deterministic (LLM judgment). The assertion will occasionally fail on a live run even when the
+> engine is correct. A failure here means re-run before concluding a regression; it does **not**
+> mean the safety path is broken.
 
 The three tasks live in `bench/fixtures/safety-tasks.json`. Human-readable mirrors:
 
 - `bench/tasks/cross-task-coupled.md` — cross-task coupling that triggers `cannotVerify`
-- `bench/tasks/multi-commit.md` — documents the multi-commit integration scenario
+- `bench/tasks/multi-commit.md` — documents the per-task baseSha scoping scenario
 - `bench/tasks/spec-incomplete.md` — intentionally omissible export for spec-fail testing
+
+> **Multi-commit BASE..HEAD scope (C2):** Multi-commit diffs occur naturally when a task takes >1
+> fix round. This is **unit-tested** via the per-task baseSha scoping in
+> `tests/engine/h2-resume-cannotverify.test.mjs` (Task 7). This live fixture does **not** separately
+> force or assert a multi-commit range — no task count of commits is asserted here.
+>
+> **H2 crash-resume (M1):** H2 (crash-resume rebuilding `cannotVerify`) is covered by the unit test
+> `tests/engine/h2-resume-cannotverify.test.mjs`, **not** by this live fixture.
 
 ### Running
 

@@ -2,11 +2,22 @@
 # bench/safety-run.sh — Safety-path fixture runner (B-v6 only, H4).
 #
 # Exercises the v6 engine's risky paths: cannot_verify routing (cross-task-coupled),
-# spec-fail block (spec-incomplete), and multi-commit BASE..HEAD integration review.
+# spec-fail block (spec-incomplete), and per-task baseSha diff scoping (Task 7).
 #
 # This is NOT a cost-comparison benchmark. It runs B-v6 only and asserts pass/fail outcomes:
 #   (a) cross-task-coupled produces at least one cannotVerify entry in result.cannotVerify
-#   (b) spec-incomplete is NOT in result.passed (specVerdict='fail' path blocks it)
+#       [PROBABILISTIC: the structural coupling is real (per-task diff scoping excludes config-module's
+#        commit from cross-task-coupled's reviewPackage), but whether the LLM reviewer emits
+#        cannot_verify is non-deterministic. See bench/README.md §8.2.]
+#   (b) if cannotVerify is non-empty, the engine must have routed to integration (result.integration
+#       present) OR escalated to human (result.needsHuman contains "cross-task")
+#   (c) if cannotVerify is non-empty, result.integration must be present (integration gate ran)
+#   (d) spec-incomplete is NOT in result.passed (specVerdict='fail' path blocks it)
+#   (e) spec-incomplete appears in result.failed[].task OR result.needsHuman (failure path actually fired)
+#
+# Multi-commit BASE..HEAD coverage: multi-commit diffs occur naturally when a task takes >1 fix
+# round. This is unit-tested via the per-task baseSha scoping in tests/engine/h2-resume-cannotverify.test.mjs
+# (Task 7), NOT separately forced here. See bench/tasks/multi-commit.md.
 #
 # Offline / CI mode: when `claude` is not on PATH, the script:
 #   - runs all file-shape assertions it can (fixture JSON valid, scripts exist + syntax-clean)
@@ -113,6 +124,8 @@ TRANSCRIPT="$OUT/transcript.jsonl"
 STDERR_LOG="$OUT/stderr.log"
 RESULT="$OUT/result.json"
 
+SAFETY_MAX_BUDGET="${SAFETY_MAX_BUDGET:-5}"
+
 PROMPT="Call the Workflow tool with scriptPath \"$WORKFLOW_JS\" and the args below, then return the Workflow's final JSON result verbatim (nothing else):
 {
   \"tasks\": $(cat "$TASKS"),
@@ -132,6 +145,7 @@ echo "safety-run.sh: launching B-v6 arm on safety-tasks.json..."
   claude -p \
     --output-format stream-json --verbose \
     --permission-mode bypassPermissions \
+    --max-budget-usd "$SAFETY_MAX_BUDGET" \
     --append-system-prompt "Headless bench run; no human is watching; never ask to continue; execute all tasks to completion." \
     "$PROMPT"
 ) > "$TRANSCRIPT" 2> "$STDERR_LOG" \
@@ -146,11 +160,33 @@ echo "safety-run.sh: result written to $RESULT"
 # ─── assertions ───
 echo "safety-run.sh: running assertions..."
 
+# C1 (a): cannotVerify non-empty — PROBABILISTIC: structural coupling is real (per-task diff scoping
+# excludes config-module's commit from cross-task-coupled's reviewPackage), but LLM-judgment whether
+# the reviewer emits cannot_verify. See bench/README.md §8.2 for the probabilistic-assertion note.
 jq -e '.cannotVerify | length > 0' "$RESULT" >/dev/null \
   || { echo "FAIL: no cannot_verify entry produced by the cross-task-coupled task"; exit 1; }
 
+# C1 (b) / I1: if cannotVerify is non-empty, integration must have run (result.integration != null).
+# This catches a bug where cannot_verify is emitted but the integration gate is skipped.
+jq -e 'if (.cannotVerify | length > 0) then .integration != null else true end' "$RESULT" >/dev/null \
+  || { echo "FAIL: cannotVerify is non-empty but result.integration is null (integration gate skipped)"; exit 1; }
+
+# C1 (b): if cannotVerify is non-empty, engine must route to integration OR escalate to human.
+# Ties the cannot_verify ⚠️ to H3 (integration gate) as well as H4 (cannot_verify field).
+jq -e 'if (.cannotVerify | length > 0)
+       then (.integration != null) or ((.needsHuman // []) | index("cross-task") != null)
+       else true end' "$RESULT" >/dev/null \
+  || { echo "FAIL: cannotVerify is non-empty but neither integration ran nor needsHuman contains cross-task"; exit 1; }
+
+# I2: spec-incomplete must NOT be in passed
 jq -e '(.passed | index("spec-incomplete")) == null' "$RESULT" >/dev/null \
   || { echo "FAIL: spec-incomplete task wrongly in passed (spec-fail block not triggered)"; exit 1; }
+
+# I2 (strengthened): the failure path must actually have fired — spec-incomplete must appear in
+# failed[].task OR in needsHuman (can't be just "never ran")
+jq -e '(([.failed[]?.task] | index("spec-incomplete")) != null)
+       or ((.needsHuman // []) | index("spec-incomplete") != null)' "$RESULT" >/dev/null \
+  || { echo "FAIL: spec-incomplete is absent from both result.failed[].task and result.needsHuman (failure path may not have fired)"; exit 1; }
 
 echo "safety-run.sh: safety-path ok"
 echo "safety-run.sh: results -> $OUT"
