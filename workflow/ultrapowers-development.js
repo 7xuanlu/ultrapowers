@@ -101,7 +101,10 @@ const BUDGET_RESERVE = 50_000
 // make drift VISIBLE: a startup check warns if the installed superpowers differs from this pin.
 // RE-SYNC on a version bump: re-copy the skill files from
 //   ~/.claude/plugins/cache/claude-plugins-official/superpowers/<new>/skills/{test-driven-development,subagent-driven-development}/
-const SP_VERSION = '5.1.0'
+// v6 reviewer source: subagent-driven-development/task-reviewer-prompt.md (merged spec+quality);
+// final review: requesting-code-review/code-reviewer.md. TDD + implementer Code-Org bodies are
+// byte-identical 5.1.0->6.0.0 (only an @import->link change in TDD's anti-patterns reference).
+const SP_VERSION = '6.0.0'
 
 // Pluggable implementer + model routing (SDD: least-powerful-per-role).
 // 'codex'|'gemini' = cheap external CLI via its own CLI MCP tool + capable Claude fallback.
