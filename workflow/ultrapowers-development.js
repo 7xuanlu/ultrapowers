@@ -27,7 +27,8 @@ export const meta = {
 // ---- schemas ----
 const IMPL = { type: 'object', required: ['status'], properties: {
   status: { enum: ['done', 'done_with_concerns', 'needs_context', 'blocked', 'failed'] },
-  files: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' }, concerns: { type: 'string' } } }
+  files: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' }, concerns: { type: 'string' },
+  tddEvidence: { type: 'object', properties: { red: { type: 'string' }, green: { type: 'string' } } } } }
 // N1: SDD-faithful structured review — severity tiers (critical/important block; minor logged),
 // strengths + assessment for calibration (SDD code-reviewer.md). The harness derives blocking
 // from findings, not from the model's `approved` boolean alone.
@@ -303,7 +304,7 @@ It is always OK to stop and say "this is too hard for me." Bad work is worse tha
 // (do not trust the CLI's self-report) and returns structured status.
 async function implement(task, issues, prior) {
   const ctx = [
-    issues && issues.length ? `A prior check REJECTED the work. This is a FRESH session (N4) — the prior attempt's code is ALREADY on disk; run \`${GIT} diff\` FIRST to see the current state, then fix EXACTLY these issues:\n- ${issues.join('\n- ')}` : '',
+    issues && issues.length ? `A prior check REJECTED the work. This is a FRESH session (N4) — the prior attempt's code is ALREADY on disk; run \`${GIT} diff\` FIRST to see the current state, then fix EXACTLY these issues:\n- ${issues.join('\n- ')} After fixing, re-run the tests covering the amended code and include the results in tddEvidence.green.` : '',
     prior ? `Your previous attempt changed ${JSON.stringify(prior.files || [])} (summary: ${prior.summary || 'n/a'}).` : '',
   ].filter(Boolean).join('\n')
   const brief =
@@ -312,7 +313,9 @@ async function implement(task, issues, prior) {
     SDD_GUIDANCE + '\n\n' +
     `The TDD discipline above IS the verbatim superpowers:test-driven-development skill. If your environment also exposes it natively, invoke it — same content, just confirming adherence.` +
     (doCommit ? `\n\nAfter all tests green + self-review clean: commit with message "[task:${task.id}] <one-line summary>".` : '') +
-    `\n\n## Report\nReturn {status, files:[paths changed], summary, concerns?}.\n` +
+    `\n\n## Test cadence\nWhile iterating, run the focused test for what you're changing; run the full suite once before committing, not after every edit.\n` +
+    `\n\n## Report\nReturn {status, files:[paths changed], summary, concerns?, tddEvidence:{red,green}}.\n` +
+    `tddEvidence (REQUIRED when TDD applies): red = the command you ran + the relevant failing output BEFORE the implementation and why that failure was expected; green = the command + relevant passing output after.\n` +
     `status values: "done" (complete), "done_with_concerns" (complete but doubts — explain in concerns),\n` +
     `"needs_context" (spec insufficient — say what's missing), "blocked" (cannot proceed — say why).\n` +
     `Use "failed" ONLY for a transient tool/transport error (will be retried). Never silently produce work you're unsure about.`
