@@ -496,6 +496,21 @@ async function captureHead(taskId) {
   return (r && r.sha) || null
 }
 
+// v6 review-package: write this task's SCOPED diff to a file so the reviewer reads it once and
+// stays read-only. Uses the recorded BASE (not HEAD~1) so multi-commit tasks stay intact.
+const PKG = { type: 'object', required: ['path'], properties: { path: { type: 'string' }, detail: { type: 'string' } } }
+async function reviewPackage(task, baseSha) {
+  if (!baseSha) return null
+  const dir = repoDir ? `${repoDir}/.git/sdd` : '.git/sdd'
+  const p = await agent(
+    `Write this task's review package to a file with Bash, then return its path.` + REPO_NOTE + `\n` +
+    `STEP 1: \`mkdir -p ${dir}\`.\n` +
+    `STEP 2: set OUT="${dir}/review-${task.id}.diff" and write into it, in order: the commit list (\`${GIT} log --oneline ${baseSha}..HEAD\`), a stat summary (\`${GIT} diff --stat ${baseSha}..HEAD\`), then the full diff (\`${GIT} diff -U10 ${baseSha}..HEAD\`). Do NOT modify any tracked file.\n` +
+    `Return {path:"<OUT>"}.`,
+    { label: `review-package:${task.id}`, phase: `task:${task.id}`, model: 'haiku', schema: PKG })
+  return (p && p.path) || null
+}
+
 // N2: graduated-BLOCKED step 3 — try splitting a blocked task into smaller pieces before
 // escalating to a human. Only ORIGINAL tasks decompose (never a decomposition product), and the
 // MAX_TASKS ceiling bounds total growth. Returns subtasks or null (atomic / decompose declined).
@@ -565,6 +580,7 @@ async function buildTask(task) {
     }
 
     // v6 merged review: one pass returns spec verdict + dimensioned findings.
+    diffFile = await reviewPackage(task, baseSha)
     const rev = await reviewTask(task, r, baseSha, diffFile)
     if (rev.unavailable) return { task: task.id, ok: false, reason: 'review-unavailable', needsHuman: true, by: r.by }
     // H1: specVerdict='fail' is an UNCONDITIONAL block, independent of finding severity.
