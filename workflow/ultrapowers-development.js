@@ -661,7 +661,8 @@ async function checkpoint(res) {
   await agent(
     `Append exactly one line to ${logFile} (create dirs/file if needed) with Bash, then stop:\n` +
     `${JSON.stringify({ id: res.task, ok: res.ok, by: res.by || null, reason: res.reason || null, cannotVerify: res.cannotVerify || [] })}\n` +
-    `Use: printf '%s\\n' '<the json>' >> ${logFile}`,
+    `Use: printf '%s\\n' '<the json>' >> ${logFile}` +
+    (res.ok ? `\nAlso append a human-readable ledger line to ${repoDir ? `${repoDir}/.git/sdd` : '.git/sdd'}/progress.md (create the dir/file if needed): \`Task ${res.task}: complete (review clean)\`.` : ''),
     { label: `checkpoint:${res.task}`, phase: `task:${res.task}`, model: 'haiku' })
 }
 
