@@ -55,6 +55,10 @@ const REDWITNESS = { type: 'object', required: ['applicable', 'redWitnessed'], p
   applicable: { type: 'boolean' }, redWitnessed: { type: 'boolean' }, detail: { type: 'string' } } }
 const PREFLIGHT = { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, detail: { type: 'string' } } }
 const DONELIST = { type: 'object', required: ['done'], properties: { done: { type: 'array', items: { type: 'string' } } } }
+const RESUME = { type: 'object', required: ['done'], properties: {
+  done: { type: 'array', items: { type: 'string' } },
+  cannotVerify: { type: 'array', items: { type: 'object', required: ['task', 'items'], properties: {
+    task: { type: 'string' }, items: { type: 'array', items: { type: 'string' } } } } } } }
 const SPVER = { type: 'object', required: ['installed'], properties: { installed: { type: 'array', items: { type: 'string' } } } }
 const TASK = { type: 'object', required: ['id', 'spec'], properties: { id: { type: 'string' }, spec: { type: 'string' } } }
 const PLAN = { type: 'object', required: ['tasks'], properties: { tasks: { type: 'array', items: TASK } } }
@@ -624,18 +628,20 @@ async function critic(g, builtIds, round, priorGaps) {
 }
 
 // Crash-resume helpers (cheap model).
-async function loadDone() {
-  if (!logFile) return new Set()
+// Crash-resume: read {id, ok, by, cannotVerify?} lines. Rebuild done-ids AND the ⚠️ accumulator (H2).
+async function loadResume() {
+  if (!logFile) return { done: new Set(), cannotVerify: [] }
   const r = await agent(
-    `Read ${logFile} if it exists (JSONL, one {"id","ok"} per line). Return {done:[ids where ok===true]}. Missing file => {done:[]}.`,
-    { label: 'resume-load', phase: 'Preflight', model: 'haiku', schema: DONELIST })
-  return new Set((r && r.done) || [])
+    `Read ${logFile} if it exists (JSONL, one {"id","ok","cannotVerify"?} per line). Return ` +
+    `{done:[ids where ok===true], cannotVerify:[{task:id, items:[the cannotVerify strings]} for each ok line whose cannotVerify is non-empty]}. Missing file => {done:[], cannotVerify:[]}.`,
+    { label: 'resume-load', phase: 'Preflight', model: 'haiku', schema: RESUME })
+  return { done: new Set((r && r.done) || []), cannotVerify: (r && r.cannotVerify) || [] }
 }
 async function checkpoint(res) {
   if (!logFile) return
   await agent(
     `Append exactly one line to ${logFile} (create dirs/file if needed) with Bash, then stop:\n` +
-    `${JSON.stringify({ id: res.task, ok: res.ok, by: res.by || null, reason: res.reason || null })}\n` +
+    `${JSON.stringify({ id: res.task, ok: res.ok, by: res.by || null, reason: res.reason || null, cannotVerify: res.cannotVerify || [] })}\n` +
     `Use: printf '%s\\n' '<the json>' >> ${logFile}`,
     { label: `checkpoint:${res.task}`, phase: `task:${res.task}`, model: 'haiku' })
 }
@@ -713,11 +719,13 @@ if (_args.planOnly) return { planOnly: true, plannedTasks: planned, tasks: queue
 const sp = await checkSpDrift()   // anti-drift: warn if installed superpowers != the pinned-source version
 const pf = await preflight()
 if (!pf.ok) { log(`ABORT: preflight repo mismatch — ${pf.detail}`); return { aborted: 'preflight', detail: pf.detail, total: tasks.length } }
-const alreadyDone = await loadDone()
+const accCannotVerify = []   // [{task, items}] — ⚠️ items from passing tasks, resolved at integration (H3)
+const resume = await loadResume()
+const alreadyDone = resume.done
+resume.cannotVerify.forEach(c => { if (c && c.items && c.items.length) accCannotVerify.push(c) })
 const seen = new Set()
 const results = []
 let round = 0, lastGaps = [], builtCount = 0, stopReason = null
-const accCannotVerify = []   // [{task, items}] — ⚠️ items from passing tasks, resolved at integration (H3)
 const lowOnBudget = () => (typeof budget !== 'undefined' && budget.total) ? budget.remaining() < BUDGET_RESERVE : false
 // N10: make the budget guard's status visible instead of silently inert.
 if (typeof budget === 'undefined' || !budget || !budget.total) log('note: no runtime budget ceiling — maxTasks is the only runaway guard')
