@@ -1,5 +1,11 @@
 # Design: what gates replan / extra verification / human escalation
 
+> **Superseded (2026-06-17, v6 upgrade):** the two-stage `reviewSpec`/`reviewQuality` pair described
+> below is now a SINGLE merged `reviewTask` (spec + quality in one opus pass) with a `cannot_verify`
+> tier routed to the integration review. The gating *logic* is unchanged (severity-derived blocking,
+> fail-closed, `MAX_FIX`, thrash guard) plus a controller-level `specVerdict='fail'` block (H1) and a
+> fail-closed `cannot_verify` gate (H3). See [`2026-06-17-ultrapowers-v6-upgrade-design.md`](./2026-06-17-ultrapowers-v6-upgrade-design.md).
+
 Answering the sharp question: *is the harness gated by **confidence** in deciding to replan, to
 spend more verifier subagents on a task, or to escalate to a human, and where are those
 boundaries?* Grounded in `workflows/ultrapowers-development.js` (line refs below).

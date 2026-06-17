@@ -1,6 +1,6 @@
 export const meta = {
   name: 'ultrapowers-development',
-  description: 'Dynamic SDD-disciplined build harness. Plans goal into tasks, then per task (SERIAL): pluggable implementer (codex via `codex exec` batch, gemini via CLI MCP, or claude direct) with strict TDD red-green-refactor → deterministic gate → two-stage Opus review (spec-compliance THEN code-quality, both fail-closed, SDD-faithful prompts) → fix-loop; dry-until-clean critic adds tasks mid-run; final adversarial integration review. Model-routed: cheap for mechanical impl, capable for review/planning. Crash-resumable. Tight return.',
+  description: 'Dynamic SDD-disciplined build harness. Plans goal into tasks, then per task (SERIAL): pluggable implementer (codex via `codex exec` batch, gemini via CLI MCP, or claude direct) with strict TDD red-green-refactor → deterministic gate → merged Opus task review (spec + code-quality in one pass, fail-closed, SDD v6 task-reviewer; ⚠️ cannot_verify items routed to the final review) → fix-loop; dry-until-clean critic adds tasks mid-run; final adversarial integration review. Model-routed: cheap for mechanical impl, capable for review/planning. Crash-resumable. Tight return.',
   whenToUse: 'Unattended multi-task / whole-goal implementation: hand it args.tasks OR args.goal and it plans, builds, reviews, and loops until a critic says done — implementer discipline from superpowers TDD/SDD, all decisions agent-made.',
   // Only Plan + Preflight are DECLARED here (they always run first, so they anchor slots 1-2).
   // The per-task BUILD work and the final INTEGRATE review are intentionally NOT declared — they use
@@ -135,7 +135,7 @@ const FULL_VERIFY_CMD = _args.fullVerifyCmd || null
 // task's PRODUCTION files to their pre-task state (keeping the new tests) and re-run the suite. A correct test
 // MUST go red without its implementation; if the suite still PASSES, the test does not exercise the new code
 // (vacuous / non-dependent) -> send back to the implementer. A 14-chain study (haiku+sonnet, 7 pure-fn tasks)
-// found 0 weak tests so this fired 0 false positives there; it exists to close the ONE failure mode two-stage
+// found 0 weak tests so this fired 0 false positives there; it exists to close the ONE failure mode the merged
 // LLM review can miss on non-trivial code — a test that doesn't depend on the impl at all. Needs per-task
 // commits (commit:true) so the revert is exact and restorable from HEAD. Off via redWitness:false.
 const RED_WITNESS = _args.redWitness !== false

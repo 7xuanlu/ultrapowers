@@ -8,7 +8,7 @@ reviewed branch. You step in at two points only: approving the plan up front, an
 finished branch.
 
 That discipline is Superpowers' work, embedded verbatim: spec-first design, watch-it-fail TDD, and a
-two-stage review on every task. ultrapowers' own part is the host. It runs the discipline on a
+merged spec+quality review on every task. ultrapowers' own part is the host. It runs the discipline on a
 deterministic JavaScript coordinator, so a long, many-task build runs hands-off without filling up
 your chat session. The name and the idea come from a Superpowers proposal obra declined; see
 [Why it exists](#why-it-exists).
@@ -94,7 +94,7 @@ That is what makes "hand off a whole goal and walk away" actually hold.
 ## Why it exists
 
 **Most of ultrapowers is Superpowers, and we do not pretend otherwise.** The build discipline it
-runs (watch-it-fail TDD, the two-stage fail-closed review, least-powerful-model routing) is
+runs (watch-it-fail TDD, the merged fail-closed review, least-powerful-model routing) is
 Superpowers' work by Jesse Vincent ([@obra](https://github.com/obra)), embedded verbatim, with
 gratitude (see [`NOTICE`](./NOTICE)). Expect the same harness guarantees you would get from
 Superpowers on everything it covers, no more and no less.
