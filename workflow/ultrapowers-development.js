@@ -344,7 +344,11 @@ async function implement(task, issues, prior) {
         // session (setsid), and at the deadline SIGKILLs codex's WHOLE process group and exits 124 (-> reported
         // failed -> retried/fell back). Root-caused 2026-06-17: the prior Bash-tool-only timeout killed the
         // shell, not codex's group, so a wedged codex (+ its helpers) survived as ppid=1 orphans for days.
-        const cmd = `perl -e 'use POSIX qw(setsid); my $t=shift; my $in=shift; my $p=fork; die "fork" unless defined $p; if($p==0){setsid(); open(STDIN,"<",$in) or die "stdin"; exec @ARGV or die "exec"} $SIG{ALRM}=sub{kill("KILL",-$p); waitpid($p,0); exit 124}; alarm $t; waitpid($p,0); my $c=$?>>8; my $s=$?&127; exit($s?128+$s:$c)' ${Math.ceil(CODEX_TIMEOUT_MS / 1000)} ${briefFile} codex exec --cd ${repoDir || '.'} --ephemeral --skip-git-repo-check -s workspace-write${modelFlag}${reasonFlag} -`
+        // SECURITY: codex runs UNSANDBOXED (sandbox.excludedCommands) so it inherits the session env,
+        // including secrets the trusted MCP server needs but an external CLI must not read (e.g. the GitHub
+        // PAT injected by settings.json env). `env -u` scrubs them from codex's child shell; the MCP server
+        // (in-process) still gets them. `-s workspace-write` only confines writes, not env reads.
+        const cmd = `perl -e 'use POSIX qw(setsid); my $t=shift; my $in=shift; my $p=fork; die "fork" unless defined $p; if($p==0){setsid(); open(STDIN,"<",$in) or die "stdin"; exec @ARGV or die "exec"} $SIG{ALRM}=sub{kill("KILL",-$p); waitpid($p,0); exit 124}; alarm $t; waitpid($p,0); my $c=$?>>8; my $s=$?&127; exit($s?128+$s:$c)' ${Math.ceil(CODEX_TIMEOUT_MS / 1000)} ${briefFile} env -u GITHUB_PERSONAL_ACCESS_TOKEN codex exec --cd ${repoDir || '.'} --ephemeral --skip-git-repo-check -s workspace-write${modelFlag}${reasonFlag} -`
         return (
           `Implement this with the Codex CLI in NON-INTERACTIVE batch mode (codex exec). Do NOT use any MCP tool.\n\n` +
           `STEP 1 — write the BRIEF below VERBATIM (no edits, no summarizing) to ${briefFile} using the Write tool.\n` +
