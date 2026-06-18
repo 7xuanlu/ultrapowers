@@ -7,11 +7,19 @@
   "plugins": [
     {
       "name": "ultrapowers",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "source": "./",
       "description": "Hand Claude Code a goal and walk away. ultrapowers plans it, builds it test-first, reviews every step, and hands back a branch you can trust. Built on and complements superpowers by Jesse Vincent (@obra); does not replace it.",
       "license": "MIT",
-      "keywords": ["sdd", "tdd", "workflow", "unattended", "code-review", "re-witness-red", "superpowers"]
+      "keywords": [
+        "sdd",
+        "tdd",
+        "workflow",
+        "unattended",
+        "code-review",
+        "re-witness-red",
+        "superpowers"
+      ]
     }
   ]
 }
