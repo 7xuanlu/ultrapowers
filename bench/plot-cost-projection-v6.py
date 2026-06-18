@@ -78,7 +78,7 @@ add('<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="476" '
     'font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="13">')
 add('<rect width="1060" height="476" fill="#ffffff"/>')
 add('<text x="24" y="28" font-size="17" font-weight="700" fill="#111">'
-    "Superpowers v6 vs ultrapowers: measured to 24 tasks, projected to SP's 1M window</text>")
+    "Superpowers v6 vs Ultrapowers: measured to 24 tasks, projected to SP's 1M window</text>")
 add('<text x="24" y="46" font-size="12" fill="#666">'
     'solid = measured (12 &amp; 24 tasks, N=1) &#183; dashed = PROJECTED &#183; same fixture, sonnet implementer + opus reviewers on both; only the loop locus differs</text>')
 
@@ -147,8 +147,8 @@ add(f'<text x="{rx(86)-4:.1f}" y="{yw(1000)+16:.1f}" text-anchor="end" fill="{RE
 add(f'<text x="{rx(86)-4:.1f}" y="{yw(Bwin(86))+16:.1f}" text-anchor="end" fill="{BLUE}" font-size="12" font-weight="700">UP ~{Bwin(86):.0f}K</text>')
 
 # ---- legend ------------------------------------------------------------------
-add(f'<rect x="24" y="458" width="14" height="4" fill="{RED}"/><text x="44" y="465" fill="#333" font-size="12">SP = superpowers v6 (in-session opus coordinator)</text>')
-add(f'<rect x="360" y="458" width="14" height="4" fill="{BLUE}"/><text x="380" y="465" fill="#333" font-size="12">UP = ultrapowers (flat JS coordinator)</text>')
+add(f'<rect x="24" y="458" width="14" height="4" fill="{RED}"/><text x="44" y="465" fill="#333" font-size="12">SP = Superpowers v6 (in-session opus coordinator)</text>')
+add(f'<rect x="360" y="458" width="14" height="4" fill="{BLUE}"/><text x="380" y="465" fill="#333" font-size="12">UP = Ultrapowers (flat JS coordinator)</text>')
 add(f'<text x="700" y="465" fill="{GREY}" font-size="11">PROJECTED 24..86 via the window/cache-read mechanism &#183; not measured</text>')
 add('</svg>')
 

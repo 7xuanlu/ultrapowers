@@ -5,20 +5,20 @@ divergence actually show up at scale, and (2) does re-witness RED catch anything
 ships? Ran the 24-task `longtasks-docdb` fixture through both architectures, headless.
 
 - **superpowers (A):** `superpowers:subagent-driven-development`, sonnet coordinator + sonnet impl + sonnet reviewers.
-- **ultrapowers (B):** Workflow via scriptPath, sonnet impl + opus reviewers, re-witness ON.
+- **Ultrapowers (B):** Workflow via scriptPath, sonnet impl + opus reviewers, re-witness ON.
 
 Both completed all 24 tasks green (A: 262 tests pass; B: 226 tests pass).
 
 ## 1. Scale curve, Meter-A divergence, confirmed
 
-| | superpowers (A) | ultrapowers (B) |
+| | superpowers (A) | Ultrapowers (B) |
 |---|--:|--:|
 | Coordinator context, start → peak | **34K → 135K** | **34K → 41K** |
 | Coordinator turns | 191 | **6** |
 | Trajectory | monotonic climb | flat |
 
 **Confirmed:** superpowers' coordinator context grows with task count (it runs the loop in-session);
-ultrapowers' stays flat (~40K) regardless, because the Workflow runs subagents off the main
+Ultrapowers' stays flat (~40K) regardless, because the Workflow runs subagents off the main
 transcript. At 24 tasks the divergence is ~3.3× and widening.
 
 **Honest correction to an earlier estimate.** A 2-task anchor led me to project ~16K/task growth and
@@ -36,7 +36,7 @@ Audited every shipped task in both arms: strip the module, re-run its test; a te
 | Source | vacuous tests found |
 |--------|--:|
 | superpowers (A), 24 tasks, **no re-witness** | **0** |
-| ultrapowers (B), 24 tasks, re-witness ON | 0 |
+| Ultrapowers (B), 24 tasks, re-witness ON | 0 |
 | N=5 campaign, all 4 arms, 40 task-tests | 0 |
 
 **A competent sonnet implementer writes genuinely-exercising tests**, so re-witness RED, though
@@ -55,7 +55,7 @@ head-to-head (10-task subset) was run to test whether re-witness fires where it'
 | Run | implementer | re-witness | vacuous shipped |
 |-----|-------------|-----------|-----------------|
 | haiku-A (superpowers) | haiku | **off** | **0 / 10** |
-| haiku-B (ultrapowers) | haiku | on | 0 / 10 |
+| haiku-B (Ultrapowers) | haiku | on | 0 / 10 |
 
 The re-witness check *ran* for every task in haiku-B (its prompts fired in the transcript), but its
 per-task verdicts are subagent outputs **off the coordinator transcript**, so an internal catch can't

@@ -17,7 +17,7 @@ human reader only, not claims to verify against a tree.
 - Both systems run the **identical** superpowers SDD/TDD discipline. They differ in **one** thing:
   **where the orchestration loop runs.**
   - **superpowers (SP):** the loop **is** the main-session LLM; its context accumulates per task.
-  - **ultrapowers (UP):** the loop is **deterministic JS (0 LLM calls)**; its LLM calls are
+  - **Ultrapowers (UP):** the loop is **deterministic JS (0 LLM calls)**; its LLM calls are
     disposable subagents off the main transcript, so the main session stays ~6 flat turns.
 - UP's shipped routing already = **opus**(plan/review/escalate) · **sonnet**(impl) · **haiku**(verify/checkpoint/wrapper).
 - **Prior result #1, N=5 @ 2 tasks, fully matched models:** quality **TIE**; cost **TIE**
@@ -181,7 +181,7 @@ not a design assumption (the proposal correctly frames it as an open empirical q
 
 Verified against the N=5 campaign results (`bench/results/20260613-205219.json`, all 20 runs):
 
-| meter | ARM A (superpowers) | ARM B (ultrapowers) |
+| meter | ARM A (superpowers) | ARM B (Ultrapowers) |
 |-------|---------------------|---------------------|
 | stream-summed `meterB.in` | 48K-84K (subagents **in** stream) | 12-13K == `meterA` (subagents **absent**) |
 | `agentCount` (from stream) | 7-11 | **0** |

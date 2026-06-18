@@ -1,11 +1,11 @@
-# Design spec: upgrade the ultrapowers harness to Superpowers v6 parity
+# Design spec: upgrade the Ultrapowers harness to Superpowers v6 parity
 
 *Status: design, approved after adversarial council review (Claude + Codex + Gemini). Date: 2026-06-17.*
 *Re-syncs the embedded Superpowers discipline from the pinned 5.1.0 to 6.0.0, whose headline change
 is **merging the two per-task reviewers into one**. The council returned approve-with-changes and
 found four code-verified safety gaps in the first draft; all four are folded in here as
 controller-level invariants (§6) — moving the merged reviewer's safety from prompt-trust into the
-deterministic JS coordinator, which is the point of ultrapowers.*
+deterministic JS coordinator, which is the point of Ultrapowers.*
 
 ## 1. Summary
 
@@ -16,7 +16,7 @@ spec verdict tier (⚠️ "cannot verify from diff"), hardens the reviewer (read
 suite, anti-rationale), hands the diff as a file via a `review-package` script, and adds TDD-evidence
 to the implementer report.
 
-ultrapowers currently pins 5.1.0 `[VERIFIED workflow/ultrapowers-development.js:88]` and runs a
+Ultrapowers currently pins 5.1.0 `[VERIFIED workflow/ultrapowers-development.js:88]` and runs a
 two-stage **gated** review: `reviewSpec` (opus) first, then `reviewQuality` (opus) **only if spec
 passes** `[VERIFIED :440-510,597-605]`. This spec upgrades the harness to v6 parity, keeping every
 existing safety property (severity-derived blocking, fail-closed-on-reviewer-error, the fix-loop +
@@ -201,7 +201,7 @@ verified against the engine that the **controller** does not enforce them. All f
 
 ## 7. Deliberately skipped (redundant for a deterministic JS coordinator)
 
-- **Implementer-brief file-handoff.** ultrapowers dispatches a **fresh** subagent per task with only
+- **Implementer-brief file-handoff.** Ultrapowers dispatches a **fresh** subagent per task with only
   minimal threaded context (issues + changed files + summary), never pasted accumulated history
   `[VERIFIED :289-303,345-360]`, so the v6 "pasted text stays resident in the coordinator context"
   motivation does not apply. (The *reviewer* diff-file IS adopted — §5.4 — for the read-once

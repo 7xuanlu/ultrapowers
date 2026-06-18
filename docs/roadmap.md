@@ -1,13 +1,13 @@
 # Roadmap, the OSS-credibility path
 
-The honest gap between what ultrapowers **is** today (a well-documented single-file harness
+The honest gap between what Ultrapowers **is** today (a well-documented single-file harness
 with an unusually mature *intellectual* story) and what it needs to be to stand as a credible
 OSS peer (a *shippable, safe, testable* toolkit). This is the prioritized, contributor-actionable
 list. Evidence tags follow the house style: `[V src]` = verified (primary source read this session),
 `[I]` = inferred, `[ESTIMATE: calc]`, `[U]` = unknown. "I did not find X" is used in place of
 "nobody does X."
 
-> **Read this first:** ultrapowers *complements* [Superpowers](https://github.com/obra/superpowers)
+> **Read this first:** Ultrapowers *complements* [Superpowers](https://github.com/obra/superpowers)
 > by Jesse Vincent ([@obra](https://github.com/obra)); it does not replace it. The token flatness
 > is **Anthropic's Workflow primitive's** property, not our invention. The SDD/TDD discipline is
 > **inherited** from Superpowers. re-witness RED is the one scarce mechanism we found shipped
@@ -59,7 +59,7 @@ Effort: **S** = hours, **M** = a focused day, **L** = multi-day. Priority: **P0*
 ### Essential skills, depend, don't re-port
 
 The toolkit story is **"we slot into Superpowers' lifecycle,"** not "we own 14 skills." SDD's own
-`SKILL.md` names its required siblings; ultrapowers embeds only the few it has a *structural*
+`SKILL.md` names its required siblings; Ultrapowers embeds only the few it has a *structural*
 reason to (the sandbox subagents have no filesystem access, so TDD + reviewer prompts must be
 handed to each disposable agent's brief verbatim, that's why they're embedded `[V NOTICE]`).
 For everything interactive, **depend on Superpowers and document the seam**, re-porting obra's
@@ -70,7 +70,7 @@ and contradicts the complement-not-replace thesis.
 | Item | Why | Effort | Priority |
 |------|-----|--------|----------|
 | Embed `systematic-debugging` into the fix-loop brief | The single genuine *functional* skill gap. When a fix-loop thrashes (`stall>=2`) or a task is BLOCKED, the implementer gets *no* debugging discipline, and the fix-loop is where unattended runs actually fail. Embed verbatim (like TDD) or inject a pointer. | M | **P1** |
-| Document depend-on-Superpowers seams: `brainstorming` → `writing-plans` → `/ultrapowers` → `finishing-a-development-branch` | ultrapowers begins at *plan/goal*; brainstorming/writing-plans are the interactive upstream that produces it (friction is load-bearing, exactly what the README says to use Superpowers for). A reader should see ultrapowers as *one stage in the Superpowers lifecycle*, not a reinvention of all of it. | S (doc) | **P1** |
+| Document depend-on-Superpowers seams: `brainstorming` → `writing-plans` → `/ultrapowers` → `finishing-a-development-branch` | Ultrapowers begins at *plan/goal*; brainstorming/writing-plans are the interactive upstream that produces it (friction is load-bearing, exactly what the README says to use Superpowers for). A reader should see Ultrapowers as *one stage in the Superpowers lifecycle*, not a reinvention of all of it. | S (doc) | **P1** |
 | Wire GATE 2 → `superpowers:finishing-a-development-branch` | Today the command tells the human to "eyeball the integration verdict + the diff before merging" (`[V commands/ultrapowers.md:66]`) but never offers the structured merge/PR/discard menu that SDD's flow *ends* in. Hand off instead of re-porting. | S | **P1** |
 | Keep `test-driven-development` + the two reviewer prompts embedded | Already done, verbatim, for the structural reason above. Maintenance only: keep them synced to the `SP_VERSION` pin. |, | P0-maintained |
 | Align worktree creation to Superpowers' native-first convention | The command creates a worktree/branch off main `[V commands/ultrapowers.md:14]` but doesn't match Superpowers' native-tool-first detection or `.worktrees/` convention. Harden. | S | **P2** |
@@ -109,7 +109,7 @@ point IS the contribution surface.**
 
 | Item | Why | Effort | Priority |
 |------|-----|--------|----------|
-| `.claude-plugin/plugin.json` + `marketplace.json` | **The launch-blocker for distribution.** Superpowers ships exactly this `[V superpowers .claude-plugin/]`; ultrapowers has neither, so it can't be `/plugin install`ed, it relies on hand-copying JS + command into `~/.claude/`. Model on Superpowers' manifest, credit-preserving: separate author, obra linked in the description. | S | **P0** |
+| `.claude-plugin/plugin.json` + `marketplace.json` | **The launch-blocker for distribution.** Superpowers ships exactly this `[V superpowers .claude-plugin/]`; Ultrapowers has neither, so it can't be `/plugin install`ed, it relies on hand-copying JS + command into `~/.claude/`. Model on Superpowers' manifest, credit-preserving: separate author, obra linked in the description. | S | **P0** |
 | `package.json` + a real test runner for the **harness's own** tests | There is no `package.json`; the only "test" is `seed.sh` + a manual prompt-replay (`tests/re-witness-red/`). A harness that gates *other people's* code on a green suite but has **no executable suite of its own** is the single biggest credibility self-own. Add `npm test` that runs the re-witness seed and asserts vacuous→CAUGHT, good/weak→pass. Match Superpowers' bar (`[V tests/claude-code/run-skill-tests.sh]`). | M | **P0** |
 
 ### CI + self-tests
@@ -120,7 +120,7 @@ point IS the contribution surface.**
 
 ### Security posture, unattended code execution
 
-**The highest-stakes gap.** ultrapowers runs code unattended via `codex exec ... -s workspace-write`
+**The highest-stakes gap.** Ultrapowers runs code unattended via `codex exec ... -s workspace-write`
 and **explicitly requires disabling the sandbox for codex** (`Bash(codex *)` allow +
 `sandbox.excludedCommands:['codex']`, `[V workflows/ultrapowers-development.js:309-311]`: "codex's
 in-process app-server cannot start under the CC sandbox, so codex itself must run unsandboxed").
@@ -143,7 +143,7 @@ The repo documents this **nowhere user-facing**.
 
 | Item | Why | Effort | Priority |
 |------|-----|--------|----------|
-| Telemetry-off / privacy statement | ultrapowers ships **no telemetry** (it's a JS file). State it: "no telemetry, no phone-home, runs entirely in your Claude Code session." Cheap trust win, especially for a tool that runs code unattended. | S | **P2** |
+| Telemetry-off / privacy statement | Ultrapowers ships **no telemetry** (it's a JS file). State it: "no telemetry, no phone-home, runs entirely in your Claude Code session." Cheap trust win, especially for a tool that runs code unattended. | S | **P2** |
 
 ### Semver / releases
 
@@ -163,7 +163,7 @@ The repo documents this **nowhere user-facing**.
 | Item | Why | Effort | Priority |
 |------|-----|--------|----------|
 | Close the `NOTICE` legal-name TODO | `NOTICE` line 29 still says "set your own legal name / org before any public release" `[V NOTICE:29]`. A literal launch-blocker. The attribution *itself* is already complete and well-done, it enumerates every verbatim-embedded file and thanks Jesse Vincent. | S | **P0** |
-| Keep obra linked in the plugin manifest | When `plugin.json` lands, link the parent in its description; never let positioning drift into "ultrapowers > superpowers." |, | P0-maintained |
+| Keep obra linked in the plugin manifest | When `plugin.json` lands, link the parent in its description; never let positioning drift into "Ultrapowers > superpowers." |, | P0-maintained |
 
 ### Sequenced view
 
@@ -223,7 +223,7 @@ The repo documents this **nowhere user-facing**.
    `NOTICE` + `LICENSE-superpowers` already enumerate every embedded verbatim file and thank obra;
    the README cites `#1041`/`#1647` to show Superpowers *chose* this trade-off. Close the legal-name
    TODO, keep the parent linked in the plugin manifest, and never let positioning drift into
-   "ultrapowers > superpowers."
+   "Ultrapowers > superpowers."
 3. **Safety, own the unattended-code-execution risk in a `SECURITY.md`.** The tool tells users to
    disable the sandbox for codex (`-s workspace-write`, `sandbox.excludedCommands:['codex']`) and
    runs code with no human in the loop. A serious project documents the threat model, mandates
@@ -236,7 +236,7 @@ The repo documents this **nowhere user-facing**.
 
 - **Interactive, human-in-the-loop development.** Superpowers is the parent and is **better** at
   it. Brainstorming, mid-build conversation, watching a plan take shape, tight feedback, use
-  Superpowers. ultrapowers is for *unattended hand-offs*; a Workflow cannot even pause for mid-run
+  Superpowers. Ultrapowers is for *unattended hand-offs*; a Workflow cannot even pause for mid-run
   human input (constraint N5 `[V ADR-0001]`).
 - **Owning the whole lifecycle as our own skills.** We deliberately **depend** on Superpowers for
   brainstorming → writing-plans → finishing-a-branch rather than re-porting obra's prose. Fewer
@@ -244,7 +244,7 @@ The repo documents this **nowhere user-facing**.
 - **Total-billing savings (Meter B).** We do **not** claim to be cheaper-per-bill. A measured N=5
   head-to-head was a **tie** ($3.90 vs $4.03 median, ranges fully overlap
   `[V campaign-n5-2026-06-14.md]`). The scale payoff is a **capability**, not a discount:
-  ultrapowers' flat coordinator lets long/many-task builds *complete at all*, where Superpowers'
+  Ultrapowers' flat coordinator lets long/many-task builds *complete at all*, where Superpowers'
   growing controller would overflow the context window and force compaction or failure
   (`[V token-benchmark.md]` scaling model; the Meter-B crossover itself is **unmeasured**). Claiming
   a billing saving would be false.

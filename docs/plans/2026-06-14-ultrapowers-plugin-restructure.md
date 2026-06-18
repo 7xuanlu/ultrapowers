@@ -1,4 +1,4 @@
-# ultrapowers Plugin Restructure, Implementation Plan
+# Ultrapowers Plugin Restructure, Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -53,7 +53,7 @@ The engine is ES-module JS run by `node`; declaring the package makes `node --ch
 
 ```json
 {
-  "name": "ultrapowers",
+  "name": "Ultrapowers",
   "version": "0.1.0",
   "description": "Unattended SDD/TDD build harness for Claude Code (Workflow-coordinator). Complements superpowers.",
   "type": "module",
@@ -70,7 +70,7 @@ The engine is ES-module JS run by `node`; declaring the package makes `node --ch
 
 ```json
 {
-  "name": "ultrapowers",
+  "name": "Ultrapowers",
   "version": "0.1.0",
   "description": "Unattended SDD/TDD build harness, hands-off goal→plan→build with strict TDD, two-stage fail-closed review, and mechanical re-witness-RED. Complements superpowers; does not replace it.",
   "author": { "name": "Lucian (@7xuanlu)" },
@@ -88,7 +88,7 @@ The engine is ES-module JS run by `node`; declaring the package makes `node --ch
   "owner": { "name": "Lucian (@7xuanlu)" },
   "plugins": [
     {
-      "name": "ultrapowers",
+      "name": "Ultrapowers",
       "source": "./",
       "description": "Unattended SDD/TDD build harness for Claude Code (Workflow-coordinator)."
     }
@@ -175,7 +175,7 @@ Expected: FAIL, `hooks/session-start` does not exist yet (`bash: .../hooks/sessi
 
 ```bash
 #!/usr/bin/env bash
-# SessionStart hook (ultrapowers): idempotently symlink the bundled engine into
+# SessionStart hook (Ultrapowers): idempotently symlink the bundled engine into
 # ~/.claude/workflows/ so Workflow({name:'ultrapowers-development'}) resolves by name.
 # The bundled workflow/ultrapowers-development.js is the single source of truth; the
 # symlink always points at the plugin's current engine (no "two copies in sync" burden).
@@ -449,7 +449,7 @@ disable-model-invocation: true
 
 # /workflows-driven-development
 
-User-only entry to the **ultrapowers** harness. Spends real tokens → never auto-invoked.
+User-only entry to the **Ultrapowers** harness. Spends real tokens → never auto-invoked.
 You (the model running this command) own the two human gates and dispatch the deterministic
 Workflow engine. Do **not** re-implement the loop, dispatch the engine.
 
@@ -543,7 +543,7 @@ git commit -m "feat(plugin): rename /ultrapowers -> /workflows-driven-developmen
 ```markdown
 # Security
 
-ultrapowers is an **unattended build harness**: when you run
+Ultrapowers is an **unattended build harness**: when you run
 `/workflows-driven-development`, it dispatches a Workflow that **writes files, runs your
 project's test/verify command, and makes git commits** in the target repo on your behalf,
 across many disposable subagents, with human gates only at plan-approval and critical-review.

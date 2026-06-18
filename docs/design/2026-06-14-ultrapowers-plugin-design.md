@@ -8,15 +8,15 @@ review found three criticals (see §14), all confirmed against source and folded
 
 ## 1. Summary
 
-Package **ultrapowers**, an unattended SDD/TDD build harness implemented as a Claude Code
+Package **Ultrapowers**, an unattended SDD/TDD build harness implemented as a Claude Code
 **Workflow** (deterministic JS coordinator hosting Superpowers' discipline on disposable
 subagents), as an installable plugin whose **user-only entry is a slash command**,
 `/workflows-driven-development`. The command owns the human gates and dispatches the Workflow;
 a SessionStart **hook** symlinks the bundled engine into `~/.claude/workflows/` so the Workflow
 resolves by name (Workflows are **not** a plugin component, §7).
 
-ultrapowers **complements, does not replace, superpowers**. The SDD/TDD discipline is inherited
-verbatim from Superpowers (Jesse Vincent / @obra, MIT). ultrapowers' contribution: (a) hosting that
+Ultrapowers **complements, does not replace, superpowers**. The SDD/TDD discipline is inherited
+verbatim from Superpowers (Jesse Vincent / @obra, MIT). Ultrapowers' contribution: (a) hosting that
 discipline on the Workflow primitive so coordinator context stays flat over long runs (the
 Workflow's property, framed as such), and (b) one scarce mechanism, **re-witness RED**.
 
@@ -51,8 +51,8 @@ Workflow's property, framed as such), and (b) one scarce mechanism, **re-witness
 ```
 ultrapowers/                          ← plugin root = repo root
 ├── .claude-plugin/
-│   ├── plugin.json                   name "ultrapowers", v0.1.0, MIT, "complements superpowers"
-│   └── marketplace.json              marketplace "ultrapowers-dev", lists ultrapowers (source "./")
+│   ├── plugin.json                   name "Ultrapowers", v0.1.0, MIT, "complements superpowers"
+│   └── marketplace.json              marketplace "ultrapowers-dev", lists Ultrapowers (source "./")
 ├── commands/
 │   └── workflows-driven-development.md   USER-ONLY (disable-model-invocation:true). Renames the
 │                                         existing commands/ultrapowers.md. Lean body: the human

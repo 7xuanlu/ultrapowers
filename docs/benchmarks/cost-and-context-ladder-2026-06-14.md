@@ -1,7 +1,7 @@
 # Cost + context divergence ladder, A-opus vs B-full, 24-task doc-DB (2026-06-14)
 
 Model-fair head-to-head: **A-opus** (superpowers, in-session LLM coordinator) vs **B-full**
-(ultrapowers, deterministic JS Workflow coordinator). `impl=sonnet`, `reviewers=opus` on both,
+(Ultrapowers, deterministic JS Workflow coordinator). `impl=sonnet`, `reviewers=opus` on both,
 the only structural difference is **where the orchestration loop lives**. Fixture: the 24-task
 `longtasks-docdb` build, `node --test` per task. Cumulative prefixes {6, 12, 24}, **N=1**. Cost =
 billed `total_cost_usd` + per-model `modelUsage.costUSD` (rolls up subagents for both arms).
@@ -14,7 +14,7 @@ All five required changes are folded in below.
 The cost gap is within single-run noise; the **measured, monotonic, model-fair** finding is how
 fast each architecture's coordinator session fills.
 
-| metric | superpowers (A) | ultrapowers (B) |
+| metric | superpowers (A) | Ultrapowers (B) |
 |---|---|---|
 | **coordinator session window growth** | **~5K tokens/task** | **~0.8K tokens/task (≈6× slower)** |
 | session window @ {6,12,24} tasks | 82K → 107K → 172K | 43K → 51K → 59K |
@@ -26,8 +26,8 @@ fast each architecture's coordinator session fills.
 > **On modern 1M-context coordinators (opus 4.8 / sonnet 4.6 are both 1M) neither arm walls in
 > normal use**, superpowers approaches the 1M ceiling only ~task 180. At realistic scales (≤~50
 > tasks) it is **cost + quality parity**. The one measured, robust difference is the **accumulation
-> rate**: superpowers' coordinator session grows ~5K tok/task; ultrapowers' ~0.8K/task (≈6× slower).
-> ultrapowers' edge is therefore a **bounded, predictable coordinator**, headroom for very long
+> rate**: superpowers' coordinator session grows ~5K tok/task; Ultrapowers' ~0.8K/task (≈6× slower).
+> Ultrapowers' edge is therefore a **bounded, predictable coordinator**, headroom for very long
 > autonomous runs and a flat human session, **not** a near-term cost or wall win.
 
 `[VERIFIED claude-api model catalog]`: `claude-opus-4-8` default context = **1M** at standard

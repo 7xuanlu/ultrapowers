@@ -1,6 +1,6 @@
 # Discussion log
 
-Running design log for ultrapowers. We moved the conversation here out of the `lore` repo.
+Running design log for Ultrapowers. We moved the conversation here out of the `lore` repo.
 Newest at top. Keep STATE-of-thinking here; durable decisions graduate to `docs/decisions/`.
 
 ## N=5 × 4-arm campaign DONE (2026-06-14), `docs/benchmarks/campaign-n5-2026-06-14.md`
@@ -8,7 +8,7 @@ Newest at top. Keep STATE-of-thinking here; durable decisions graduate to `docs/
 First full `bench/run.sh` run. **$88.07**, 20/20 green. **Quality TIE** (20/20 self-test + 20/20 an
 independent spec suite, catches self-test gaming). **No total-cost winner at N=5** (cost-matched
 A-sonnet $3.90 vs B-parity $4.03 median = dead heat; A-opus higher variance than B-full). **Decisive
-~8× Meter-A flatness** for ultrapowers (B coordinator ~6 turns, num_turns=1, flat across all runs; A
+~8× Meter-A flatness** for Ultrapowers (B coordinator ~6 turns, num_turns=1, flat across all runs; A
 ~46-56 own turns), attributed to the Workflow primitive, not ours. Confirms the docs' thesis: the
 benchmark honestly shows Meter-A flatness + quality parity; it does NOT support a Meter-B "cheaper"
 claim. re-witness RED was not exercised (tasks too easy). Two bugs fixed en route: `--bare`
@@ -28,7 +28,7 @@ headless).
 **Verified end-to-end, both arms, `slugify` (1 task), $4.21 total incl. probes:**
 - ARM A (superpowers, sonnet): 6/6 green; SDD genuinely fired (1 Skill + 4 Agent dispatches);
   per-task commits on `eval`; $2.02.
-- ARM B (ultrapowers Workflow via scriptPath): 7/7 green; returned
+- ARM B (Ultrapowers Workflow via scriptPath): 7/7 green; returned
   `{ok:true, passed:["slugify"], integration:{approved:true}}`; $1.88.
 
 Honest-framing note: dropping `--bare` means the global `~/.claude/CLAUDE.md` loads into **both**
@@ -42,7 +42,7 @@ command, ported from Superpowers' SDD/TDD discipline onto Claude Code's Workflow
 plus re-witness RED and a dynamic loop-until-clean critic.
 
 **Settled this session:**
-- Token framing corrected: ultrapowers wins **Meter A** (flat coordinator context) decisively;
+- Token framing corrected: Ultrapowers wins **Meter A** (flat coordinator context) decisively;
   **Meter B** (total billed) is *not* near-zero and only wins on long builds. Don't claim
   total-token savings. (`docs/benchmarks/token-benchmark.md`)
 - Novelty graded honestly (`docs/research/oss-landscape.md`): re-witness RED is the one scarce
@@ -80,10 +80,10 @@ plus re-witness RED and a dynamic loop-until-clean critic.
    headless ($4.21). Campaign now unblocked, still pending user go.
 8. **Roadmap landed** (`docs/roadmap.md`): P0 launch-blockers = `plugin.json`/marketplace manifest +
    close the `NOTICE` legal-name TODO. Key stance: **depend on Superpowers' interactive skills, don't
-   re-port them**; ultrapowers is *one stage in the Superpowers lifecycle*.
+   re-port them**; Ultrapowers is *one stage in the Superpowers lifecycle*.
 
 ## Standing constraints to honor
 
 - The token efficiency is the Workflow primitive's, never claim we invented it.
-- Keep Superpowers credited and respected; ultrapowers complements, not replaces.
+- Keep Superpowers credited and respected; Ultrapowers complements, not replaces.
 - re-witness RED is the headline; everything else is integration or inherited.
