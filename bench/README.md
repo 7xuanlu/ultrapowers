@@ -223,6 +223,36 @@ it in-band.
 critic). **Report `B-full` separately; never average it with `B-parity`** (F14): its extra tokens
 buy the re-witness test-integrity guarantee, a feature comparison, not a cost-fairness comparison.
 
+### B-v5 vs B-v6 (merge A/B)
+
+Measures the cost/dispatch delta of the v6 engine rewrite relative to the pre-upgrade v5 baseline,
+without shipping any dead v5 code. Both arms mirror `B-parity` exactly — same `tasks.json`,
+`implementer:'claude'`, `implModel:'sonnet'`, `commit:true`, `redWitness:false`, tasks-only (no
+critic). The only difference is the engine path supplied to `scriptPath`:
+
+- **B-v5**: pre-upgrade engine materialized from git history via
+  `git show <PRE_UPGRADE_SHA>:workflow/ultrapowers-development.js` into a temp file. `PRE_UPGRADE_SHA`
+  is the merge-base of `main` and the upgrade branch (`bce9dc53b1d79bd5a6f7fdca94caf1f79a5e1ff1`).
+- **B-v6**: current engine at `workflow/ultrapowers-development.js` (the post-upgrade source of truth).
+
+**Primary metrics:**
+
+| Metric | Description |
+|---|---|
+| `reviewDispatches / task` | Count of `review-(task\|spec\|quality):` subagent labels per task — the v6 structural change merges two review stages, so this should drop from ~2/task (v5) to ~1/task (v6). |
+| `total_cost_usd` | Headline cost rollup (includes all subagents); derived from `result.total_cost_usd` in the transcript. |
+
+**Guard:** quality parity via the existing judge (same `src/` + `test/` collect + `verify.txt`
+output). A regression in `node --test` pass rate invalidates the cost saving.
+
+**Reporting requirements (N≥5):**
+
+1. Raw per-run table: `arm`, `run`, `reviewDispatches`, `total_cost_usd`, `wallMsScript`.
+2. Bootstrap CI (1000 resamples, 95%) on both primary metrics.
+3. Judge quality scores by arm (must be non-inferior: B-v6 ≥ B-v5 mean − 0.5 points).
+
+Run: `bash bench/run.sh --runs 5 --arms "B-v5 B-v6"`.
+
 ---
 
 ## 6. Token-accounting recipe
@@ -359,6 +389,62 @@ Flow per matched pair (`A vs B-parity`, `A vs B-full`), per task:
 **Blinding:** outputs are copied into `judge-pool/<uuid>/` with a sealed `uuid → (arm, run)` map;
 arm labels and `[task:…]`-style commit hints are stripped before judging. Aggregate per-arm Q-means
 + pairwise win-rate, with per-item raw scores published.
+
+---
+
+## 8.2 Safety-path fixture (B-v6 only, H4)
+
+`bench/safety-run.sh` is a second fixture that exercises the v6 engine's risky paths. It is
+**B-v6 only** — these paths do not exist in v5 — and asserts **pass/fail outcomes, not cost**.
+
+### What it covers
+
+| Scenario | Task ID | Assertion |
+|---|---|---|
+| `cannot_verify` routing | `cross-task-coupled` | `result.cannotVerify` must be non-empty (**probabilistic** — see note below) |
+| `cannot_verify` → integration gate | `cross-task-coupled` | If `cannotVerify` non-empty: `result.integration != null` AND (`result.integration != null` OR `"cross-task" ∈ result.needsHuman`) |
+| Spec-fail block | `spec-incomplete` | `"spec-incomplete"` must NOT appear in `result.passed` AND must appear in `result.failed[].task` or `result.needsHuman` |
+| Per-task baseSha diff scoping | `config-module` + `cross-task-coupled` | Structural coupling is real (config-module's commit is outside cross-task-coupled's reviewPackage); triggers the `cannotVerify` path above |
+
+> **Probabilistic assertion note (C1):** The structural coupling in the `cross-task-coupled` →
+> `config-module` pair is architecturally real: the engine scopes each per-task review to that
+> task's own `baseSha..HEAD` via `reviewPackage`, so `src/config.js` is **outside** the reviewer's
+> diff slice. However, whether the LLM reviewer actually emits a `cannot_verify` item is
+> non-deterministic (LLM judgment). The assertion will occasionally fail on a live run even when the
+> engine is correct. A failure here means re-run before concluding a regression; it does **not**
+> mean the safety path is broken.
+
+The three tasks live in `bench/fixtures/safety-tasks.json`. Human-readable mirrors:
+
+- `bench/tasks/cross-task-coupled.md` — cross-task coupling that triggers `cannotVerify`
+- `bench/tasks/multi-commit.md` — documents the per-task baseSha scoping scenario
+- `bench/tasks/spec-incomplete.md` — intentionally omissible export for spec-fail testing
+
+> **Multi-commit BASE..HEAD scope (C2):** Multi-commit diffs occur naturally when a task takes >1
+> fix round. This is **unit-tested** via the per-task baseSha scoping in
+> `tests/engine/h2-resume-cannotverify.test.mjs` (Task 7). This live fixture does **not** separately
+> force or assert a multi-commit range — no task count of commits is asserted here.
+>
+> **H2 crash-resume (M1):** H2 (crash-resume rebuilding `cannotVerify`) is covered by the unit test
+> `tests/engine/h2-resume-cannotverify.test.mjs`, **not** by this live fixture.
+
+### Running
+
+```bash
+# syntax check + offline file-shape assertions only (no claude required):
+bash -n bench/safety-run.sh
+bash bench/safety-run.sh   # exits 0 with "skipping live run" if claude not on PATH
+
+# live run (requires claude CLI + Workflow):
+bash bench/safety-run.sh
+# → "safety-path ok" on success
+```
+
+### What it does NOT measure
+
+This fixture measures correctness of the safety paths, not token cost or quality. Do not cross-compare
+its outcomes against the cost metrics in `§5` / `§6`. Cost measurements for B-v5 vs B-v6 use the
+standard `bench/run.sh --arms "B-v5 B-v6"` harness with `bench/tasks.json`.
 
 ---
 

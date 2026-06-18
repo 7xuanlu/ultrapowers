@@ -1,33 +1,34 @@
 # ultrapowers
 
-ultrapowers takes a goal or a task list and builds it for you, unattended, running the
-[Superpowers](https://github.com/obra/superpowers) build discipline by Jesse Vincent
-([@obra](https://github.com/obra)). It writes a plan, builds each task test-first, has a second and
-stronger model review every task, loops a critic until the goal is actually met, and hands back one
-reviewed branch. You step in at two points only: approving the plan up front, and reviewing the
-finished branch.
+ultrapowers takes a goal or a task list and builds it for you, unattended: it plans, builds each task
+test-first, has a stronger model review every task, loops a critic until the goal is met, and hands
+back one reviewed branch. You step in at two points only, approving the plan and reviewing the result.
 
-That discipline is Superpowers' work, embedded verbatim: spec-first design, watch-it-fail TDD, and a
-two-stage review on every task. ultrapowers' own part is the host. It runs the discipline on a
-deterministic JavaScript coordinator, so a long, many-task build runs hands-off without filling up
-your chat session. The name and the idea come from a Superpowers proposal obra declined; see
+The build discipline is [Superpowers](https://github.com/obra/superpowers)' work by Jesse Vincent
+([@obra](https://github.com/obra)), embedded with gratitude. ultrapowers' part is the host: it runs
+that discipline on a deterministic JavaScript coordinator, so a long, many-task build runs hands-off
+without filling up your chat session. The name comes from a Superpowers proposal obra declined; see
 [Why it exists](#why-it-exists).
 
 ## What you get
 
-![measured then projected: cost on par early, coordinator context and cost diverge at scale](docs/benchmarks/cost-projection-2026-06-14.svg)
+![superpowers v6 vs ultrapowers: a roughly 2x cost gap measured by 12 tasks, projected toward a 1M coordinator window](docs/benchmarks/cost-projection-2026-06-17.svg)
 
-Two numbers, from a model-fair head-to-head against superpowers (same implementer and reviewers on
-both sides; the only difference is where the orchestration loop runs):
+Two findings, from a model-fair head-to-head against superpowers v6 (same sonnet implementer and
+opus reviewers on both sides; the only structural difference is where the orchestration loop runs):
 
-- **Cost on par.** Within about 6% of superpowers all the way to 24 tasks ($25.95 vs $28.19), at
-  equal quality (both finished 24/24 tasks green). There is no per-bill discount at normal sizes.
-- **The coordinator stays flat.** Its session context grows about 6× slower (0.8K vs 5K tokens per
-  task). superpowers runs the loop in your session, so its window climbs with every task;
-  ultrapowers runs the loop in a script, so the build adds almost nothing to the controlling
-  session. On a single long goal of hundreds of tasks, that bounded coordinator is what keeps the
-  controlling session from filling up as the build grows, and (projected) what makes it cheaper at
-  scale. Full numbers and the honest projection caveat are in [Benchmarks](#benchmarks-measured-then-projected).
+- **A cost gap that grows with the build.** One task is a tie ($0.76 vs $0.88). By 12 and 24 tasks
+  ultrapowers runs about half the cost ($9.43 vs $20.72 at 12 tasks, $20.19 vs $38.49 at 24), at
+  equal quality (both finished every task green). This is N=1 per point and specific to superpowers
+  v6, which reworked its reviewer and made its in-session coordinator heavier, so read it as a
+  direction and an effect size, not a banked multiple.
+- **The coordinator stays flat, and that is the cause.** superpowers runs the loop in your session,
+  so its window climbs with every task (measured: a 184K peak window over 201 turns by task 12);
+  ultrapowers runs the loop in a script, so its coordinator holds about 52K across 11 turns and
+  barely grows. As the build grows, superpowers' window fills toward the model's 1M ceiling (around
+  task 86) while ultrapowers stays bounded near 100K, so the cost gap compounds from a tie to about
+  2.4×; past 1M is forced compaction, which we do not project. Full numbers, the mechanism, and the
+  honest projection caveats are in [Benchmarks](#benchmarks-measured-then-projected).
 
 ## Quick start
 
@@ -94,7 +95,7 @@ That is what makes "hand off a whole goal and walk away" actually hold.
 ## Why it exists
 
 **Most of ultrapowers is Superpowers, and we do not pretend otherwise.** The build discipline it
-runs (watch-it-fail TDD, the two-stage fail-closed review, least-powerful-model routing) is
+runs (watch-it-fail TDD, the merged fail-closed review, least-powerful-model routing) is
 Superpowers' work by Jesse Vincent ([@obra](https://github.com/obra)), embedded verbatim, with
 gratitude (see [`NOTICE`](./NOTICE)). Expect the same harness guarantees you would get from
 Superpowers on everything it covers, no more and no less.
@@ -121,9 +122,10 @@ loop-until-clean critic and the mechanical re-witness-RED check. Thanks to
 [@codename-cn](https://github.com/codename-cn) for the original idea.
 
 **What is ours, and what is not.** The flat coordinator is a property of Anthropic's Workflow
-primitive, not our invention; our move is choosing to host SDD/TDD on it. It is a scaling property,
-not a cost discount: a measured head-to-head (N=5, two small tasks per run) was a tie ($3.90 vs
-$4.03 median, ranges fully overlap). Dynamic task-adding critics already exist (CAMEL Workforce,
+primitive, not our invention; our move is choosing to host SDD/TDD on it. It is a scaling
+property: at small sizes the bill is a tie (the N=5 two-task head-to-head was $3.90 vs $4.03 median,
+ranges overlap; one task under superpowers v6 is $0.76 vs $0.88), and a dollar gap emerges as tasks
+accumulate (about 2× by 12 to 24 tasks against superpowers v6, N=1). Dynamic task-adding critics already exist (CAMEL Workforce,
 Magentic-One); ours is novel only in this combination. re-witness RED is the one mechanism we could
 not find shipped in any comparable build loop, and it is the headline. The SDD/TDD discipline is
 inherited. Detail and sources are in [`docs/research/oss-landscape.md`](./docs/research/oss-landscape.md).
@@ -148,44 +150,52 @@ to take the output to merge, but neither is required.
 
 ## Benchmarks: measured, then projected
 
-The figure at the top of this README is one frame split at a task-24 cutoff. Solid lines are
-measured (an N=1 ladder at 6, 12, and 24 tasks, billed `total_cost_usd`); past the cutoff the dashed
-lines are a projection. The arms are model-fair (same sonnet implementer, same opus reviewers; the
-only structural difference is where the loop runs). Reviewed with `/council`. Source:
-[`docs/benchmarks/cost-and-context-ladder-2026-06-14.md`](./docs/benchmarks/cost-and-context-ladder-2026-06-14.md).
+The figure at the top of this README is a re-run of the head-to-head against **superpowers v6**, on
+one task axis split at a task-24 cutoff. Solid lines are measured (an N=1 ladder at 12 and 24 tasks,
+billed `total_cost_usd`); past the cutoff the dashed lines are a projection. The arms are model-fair
+(same sonnet implementer, same opus reviewers; the only structural difference is where the loop
+runs). Source and full methodology:
+[`docs/benchmarks/cost-and-context-ladder-2026-06-17.md`](./docs/benchmarks/cost-and-context-ladder-2026-06-17.md).
 
-Measured (24 tasks and under):
+Measured (N=1 per point, same fixture and models on both arms):
 
-- Total cost is on par, within about 6% to 24 tasks ($25.95 vs $28.19; the 12-task point even
-  reverses), at equal quality (both 24/24 green; ultrapowers wrote 192 tests vs 145).
-- Coordinator context grows about 6× slower, 0.8K vs 5K tokens per task (59K vs 172K at 24 tasks).
-  On a 1M-context model neither arm walls in normal use, so at realistic sizes this is a tie you
-  pick on features, not cost. N=1 per point; these locate the shape, not a confidence interval.
+- Cost is a tie at one task ($0.76 vs $0.88), then about 2× by 12 and 24 tasks ($9.43 vs $20.72,
+  then $20.19 vs $38.49), at equal quality (every task green; ultrapowers wrote slightly more
+  tests). In the earlier v5 run this same 24-task point was a tie ($25.95 vs $28.19). superpowers v6
+  reworked its reviewer and added a whole-branch final review, which made its in-session coordinator
+  heavier (opus cache-read rose 14.08M to 26.6M at 24 tasks, +89%) while ultrapowers' fell (4.91M to
+  2.5M, -49%). N=1 per point, so this is a direction and an effect size, not a banked ratio.
+- The mechanism: superpowers' in-session coordinator grew to a 184K peak window over 201 turns by
+  task 12; ultrapowers' script coordinator held 52K across 11 turns. That re-read is the cost, the
+  opus coordinator line is about 88% of superpowers' bill.
 
-Projected (past task 24): a single long goal runs for hundreds of tasks. superpowers' coordinator
-window grows every task and is re-read by the model every turn (a cache-read tax that grows with the
-window); ultrapowers' coordinator is bounded, so its cost stays about linear. Extrapolating the
-measured ladder by that mechanism:
+Projected (24 to 86 tasks, stopping at the 1M window): a long goal accumulates context in
+superpowers' in-session coordinator, which is re-read every turn (a cache-read tax that compounds as
+the window grows) until it reaches the opus 1M ceiling around task 86; ultrapowers' coordinator is
+bounded, so its cost stays about linear. We stop the projection at that ceiling rather than model the
+forced-compaction regime beyond it. Extrapolating the measured mechanism:
 
 | tasks | SP window | SP cost | UP cost | ratio |
 |--:|--:|--:|--:|--:|
-| **24** (measured) | 172K | **$28.19** | **$25.95** | 1.09× |
-| 48 | 292K | ~$64 | ~$53 | 1.21× |
-| 96 | 532K | ~$158 | ~$110 | 1.44× |
-| 144 | 772K | ~$282 | ~$171 | 1.65× |
-| **~180** (SP nears 1M) | ~950K | **~$395** | **~$219** | **~1.8×** |
+| **12** (measured) | 184K | **$20.72** | **$9.43** | 2.2× |
+| **24** (measured) | ~316K | **$38.49** | **$20.19** | 1.9× |
+| 48 | ~580K | ~$86 | ~$42 | ~2.1× |
+| 72 | ~844K | ~$142 | ~$63 | ~2.2× |
+| **86** (SP at 1M) | ~1M | **~$178** | **~$76** | **~2.4×** |
 
-By the time superpowers' coordinator fills toward 1M (about task 180 in one hand-off), ultrapowers
-runs it for about $219 vs $395: roughly 1.8×, or $175, or 45% cheaper. ultrapowers' coordinator is
-still about 188K then, well under the model's context ceiling.
+Within that range the gap compounds: as superpowers' window fills from 184K toward 1M, the cost ratio
+climbs from 1.9× at 24 tasks to about 2.4× at task 86, while ultrapowers' coordinator stays bounded
+near 100K. Past 1M both arms would compact, which we do not project.
 
-> The dashed region is projected, not measured. It extrapolates an N=1 ladder via the cache-read-tax
-> mechanism; the band on the plot is single-run uncertainty (about 1.3× to 2.4× at task 180, central
-> 1.8×). The clean measured signal is the window-growth rate (5K vs 0.8K tokens per task); the dollar
-> curve rides on it. It is sizable, not "massive": a 3×-plus gap would only appear past the 1M wall,
-> in superpowers' forced-compaction regime, which we do not model. Reproduce or audit the model in
-> [`bench/plot-cost-projection.py`](./bench/plot-cost-projection.py) and
-> [`docs/benchmarks/cost-and-context-ladder-2026-06-14.md`](./docs/benchmarks/cost-and-context-ladder-2026-06-14.md).
+> The dashed region is projected, not measured. It extrapolates an N=1 ladder via the
+> window/cache-read mechanism, anchored on the measured window growth (184K over 201 turns at task
+> 12) and the measured cache-read (12.44M to 26.6M) rather than on the two noisy cost points (the
+> 12-task run ran hot). The band is single-run plus tax uncertainty, about 2.0× to 2.7× at task 86.
+> superpowers v6's file-handoff substrate and merged reviewer are real token wins for an in-session
+> controller; ultrapowers gets those same wins on a coordinator that never grows, which is why the
+> gap compounds rather than closes. Reproduce or audit the model in
+> [`bench/plot-cost-projection-v6.py`](./bench/plot-cost-projection-v6.py) and
+> [`docs/benchmarks/cost-and-context-ladder-2026-06-17.md`](./docs/benchmarks/cost-and-context-ladder-2026-06-17.md).
 
 ## Safety: it runs code unattended
 

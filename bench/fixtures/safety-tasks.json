@@ -1,0 +1,5 @@
+[
+  { "id": "config-module", "spec": "Create src/config.js exporting `getLimit()` returning the number 100. Add test/config.test.js asserting getLimit()===100. Red: test fails (no module). Green: test passes." },
+  { "id": "cross-task-coupled", "spec": "Create src/throttle.js exporting `throttle(n)` that returns true when n <= the limit from src/config.js's getLimit(). Import getLimit from ./config.js. Add test/throttle.test.js asserting throttle(100)===true and throttle(101)===false. NOTE: the limit value itself is owned by config-module (unchanged here) — the reviewer cannot verify the limit from this diff alone." },
+  { "id": "spec-incomplete", "spec": "Create src/greet.js exporting `greet(name)` returning `Hello, <name>!` AND `greetFormal(name)` returning `Good day, <name>.`. Add test/greet.test.js covering BOTH. (This task is intentionally used to exercise a spec-fail path when an implementer omits greetFormal.)" }
+]

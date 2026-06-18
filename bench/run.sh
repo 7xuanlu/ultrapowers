@@ -10,6 +10,13 @@
 #   A-opus     superpowers, coordinator --model opus     (SDD "most-capable" reading)
 #   B-parity   ultrapowers, redWitness:false             (cost-matched review stage set)
 #   B-full     ultrapowers, as shipped (re-witness ON)   (what-you-actually-get)
+#   B-v5       ultrapowers pre-upgrade engine (git show PRE_UPGRADE_SHA), redWitness:false
+#   B-v6       ultrapowers post-upgrade engine (WORKFLOW_JS),             redWitness:false
+#
+# B-v5 / B-v6 merge A/B (see bench/README.md §B-v5-vs-B-v6): primary = reviewDispatches/task +
+# total_cost_usd; guard = quality parity via the existing judge; N≥5; raw table + bootstrap CI.
+# PRE_UPGRADE_SHA = bce9dc53b1d79bd5a6f7fdca94caf1f79a5e1ff1 (merge-base of main + this branch;
+# the last commit before the v6 upgrade tasks; resolves the original two-stage v5 engine).
 #
 # HONESTY: every value that must come from the real `claude` CLI is written into the result JSON as a
 # `TODO(real-cli)` marker, NOT a fabricated number. Token field names are pinned against a real
@@ -26,9 +33,16 @@ set -euo pipefail
 # ─────────────────────────────── paths & defaults ───────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BENCH_DIR="$SCRIPT_DIR"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # ARM B drives the ultrapowers Workflow by scriptPath (the repo's source-of-truth copy), so the
 # benchmark pins the exact file under test rather than whatever happens to be installed in ~/.claude.
-WORKFLOW_JS="$(cd "$SCRIPT_DIR/.." && pwd)/workflow/ultrapowers-development.js"
+WORKFLOW_JS="$ROOT/workflow/ultrapowers-development.js"
+# B-v5 / B-v6 A/B: materialize the pre-upgrade engine from git history into a temp path so no dead
+# v5 code ships in the working tree. PRE_UPGRADE_SHA is the merge-base of main + this branch
+# (bce9dc53b1d79bd5a6f7fdca94caf1f79a5e1ff1) — the last commit before the v6 upgrade tasks.
+PRE_UPGRADE_SHA="$(git -C "$ROOT" merge-base main HEAD)"
+V5_ENGINE_DIR="$(mktemp -d)"
+V5_ENGINE="$V5_ENGINE_DIR/ultrapowers-development.v5.js"
 TEMPLATE_DIR="$BENCH_DIR/fixtures/target-repo-template"
 TASKS_JSON="$BENCH_DIR/tasks.json"
 RUNS_ROOT="$BENCH_DIR/runs"
@@ -189,6 +203,27 @@ Call the Workflow tool with scriptPath "$WORKFLOW_JS" and the args below, then r
 PROMPT
 }
 
+# ARM B-v5/B-v6 prompt: same shape as B-parity (redWitness:false, tasks-only, no critic) but with a
+# caller-supplied scriptPath — B-v5 receives the materialized pre-upgrade engine path, B-v6 the
+# current WORKFLOW_JS. Mirror of B-parity; only scriptPath differs between the two arms.
+build_arm_b_version_prompt() { # $1 = repo dir ; $2 = script path
+  local dir="$1" script_path="$2"
+  cat <<PROMPT
+Call the Workflow tool with scriptPath "$script_path" and the args below, then return the Workflow's final JSON result verbatim (nothing else):
+{
+  "tasks": $(cat "$TASKS_JSON"),
+  "repoDir": "$dir",
+  "verifyCmd": "$VERIFY_CMD",
+  "implementer": "claude",
+  "implModel": "sonnet",
+  "commit": true,
+  "redWitness": false,
+  "maxRounds": 3,
+  "maxTasks": 50
+}
+PROMPT
+}
+
 # Execute one arm/run. Writes transcript.jsonl + stderr.log + meta.json into the run dir.
 # In --dry-run mode it writes a stub transcript with TODO(real-cli) markers instead of calling claude.
 execute() { # $1 = arm  $2 = run_id  $3 = repo dir  $4 = run dir
@@ -201,6 +236,13 @@ execute() { # $1 = arm  $2 = run_id  $3 = repo dir  $4 = run dir
     A-opus)   coord_model="opus";   prompt="$(build_arm_a_prompt "$repo")" ;;
     B-parity) prompt="$(build_arm_b_prompt "$repo" parity)" ;;
     B-full)   prompt="$(build_arm_b_prompt "$repo" full)" ;;
+    B-v5)
+      # Materialize the pre-upgrade engine from git history (once; idempotent via V5_ENGINE path).
+      if [ ! -f "$V5_ENGINE" ]; then
+        git -C "$ROOT" show "${PRE_UPGRADE_SHA}:workflow/ultrapowers-development.js" > "$V5_ENGINE"
+      fi
+      prompt="$(build_arm_b_version_prompt "$repo" "$V5_ENGINE")" ;;
+    B-v6)     prompt="$(build_arm_b_version_prompt "$repo" "$WORKFLOW_JS")" ;;
     *) echo "run.sh: unknown arm '$arm'" >&2; return 2 ;;
   esac
 
@@ -349,8 +391,17 @@ while [ "$run_i" -le "$N" ]; do
     execute "$arm" "$run_i" "$repo" "$rundir"
     metered="$(meter "$rundir/transcript.jsonl")"
     collect "$repo" "$rundir"
-    # One record per run, merging meta + meters.
-    jq -s '.[0] * {metrics:.[1]}' "$rundir/meta.json" <(printf '%s' "$metered") \
+    # Derive reviewDispatches: count assistant messages whose content contains a review-task:,
+    # review-spec:, or review-quality: subagent label (B-v5/B-v6 A/B primary metric).
+    review_dispatches="$(jq -s '
+      [.[] | select(.type=="assistant") | .message]
+      | map(select(.. | strings? | test("review-(task|spec|quality):")))
+      | length
+    ' "$rundir/transcript.jsonl" 2>/dev/null || echo '"TODO(real-cli)"')"
+    # One record per run, merging meta + meters + reviewDispatches.
+    jq -s --argjson rd "$review_dispatches" \
+      '.[0] * {metrics:(.[1] * {reviewDispatches:$rd})}' \
+      "$rundir/meta.json" <(printf '%s' "$metered") \
       >> "$RESULTS_DIR/records.jsonl"
   done
   run_i=$(( run_i + 1 ))

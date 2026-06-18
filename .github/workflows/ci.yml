@@ -21,6 +21,8 @@ jobs:
           node-version: 20
       - name: Engine syntax check
         run: npm run check
+      - name: Engine unit tests
+        run: npm run test:engine
       - name: Validate JSON manifests
         run: |
           for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json package.json; do

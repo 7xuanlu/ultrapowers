@@ -20,8 +20,8 @@ Workflow engine. Do **not** re-implement the loop, dispatch the engine.
 ## On `help`
 Print the Usage block above, then: "default = one disciplined pass; `--thorough` adds a
 completeness critic that loops until no new findings (goal mode only). Built-in always-on:
-strict TDD, two-stage opus review (fail-closed), re-witness RED, per-task commit. Task-list
-format: see `${CLAUDE_PLUGIN_ROOT}/reference/task-list.md`. Cost scales with task count, each task runs an implementer plus two opus reviews (plus re-witness RED)." Then stop.
+strict TDD, merged opus review (spec + quality, fail-closed), re-witness RED, per-task commit. Task-list
+format: see `${CLAUDE_PLUGIN_ROOT}/reference/task-list.md`. Cost scales with task count, each task runs an implementer plus one merged opus review (plus re-witness RED)." Then stop.
 
 ## Workspace isolation (do first, before any gate)
 If the target repo is on `main`/`master`, create a feature worktree/branch first
