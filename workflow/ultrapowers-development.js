@@ -54,6 +54,7 @@ const TASK_REVIEW = { type: 'object', required: ['specVerdict', 'approved'], pro
 const VERIFY = { type: 'object', required: ['code'], properties: { code: { type: 'integer' }, tail: { type: 'string' } } }
 const REDWITNESS = { type: 'object', required: ['applicable', 'redWitnessed'], properties: {
   applicable: { type: 'boolean' }, redWitnessed: { type: 'boolean' }, detail: { type: 'string' } } }
+const SCOPEGUARD = { type: 'object', required: ['deleted'], properties: { deleted: { type: 'array', items: { type: 'string' } } } }
 const PREFLIGHT = { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, detail: { type: 'string' } } }
 const RESUME = { type: 'object', required: ['done'], properties: {
   done: { type: 'array', items: { type: 'string' } },
@@ -139,6 +140,9 @@ const FULL_VERIFY_CMD = _args.fullVerifyCmd || null
 // LLM review can miss on non-trivial code — a test that doesn't depend on the impl at all. Needs per-task
 // commits (commit:true) so the revert is exact and restorable from HEAD. Off via redWitness:false.
 const RED_WITNESS = _args.redWitness !== false
+// Descope guard: deterministic backstop to the LLM reviewer — a task may not DELETE pre-existing
+// files to reach green unless its spec authorizes it. Off via scopeGuard:false.
+const SCOPE_GUARD = _args.scopeGuard !== false
 // loop-until-clean (the dry-until-clean completeness critic that ADDS net-new tasks mid-run) is an
 // OPT-IN FEATURE, not always-on. In goal-mode it now defaults OFF: plan once, build those tasks, stop.
 // Set loopUntilClean:true to let the critic inspect the tree, find gaps, inject new tasks, and loop
@@ -356,6 +360,7 @@ async function implement(task, issues, prior) {
           `    ${cmd}\n` +
           `  codex runs autonomously in ${repoDir || 'this repo'}: writes the failing test FIRST, then the code, runs the suite, and commits. Batch mode needs no approvals.\n` +
           `  If the Bash call times out, OR codex exits non-zero with a startup/transport error (e.g. "failed to initialize ... app-server", or a network error) -> report status:"failed" (it will be retried).\n` +
+          `  If codex could not proceed because a write or command was DENIED by its sandbox or a permission boundary (e.g. it needed a path outside its allowed scope), report status:"blocked" with the denial in the summary — NOT "failed" (which blindly retries into the same wall).\n` +
           `STEP 3 — after codex returns, INDEPENDENTLY verify (do NOT trust codex's stdout): inspect \`${GIT} diff\` / \`${GIT} status\` and read the changed files, then report {status, files:[changed paths], summary, concerns?}.\n` +
           `status:"failed" ONLY for a codex timeout/startup/transport error.\n\n` +
           `--- BRIEF (write to ${briefFile} verbatim) ---\n${brief}`)
@@ -565,7 +570,29 @@ async function triageConcerns(task, r) {
   return r
 }
 
-// One task end-to-end. Flow: gate -> re-witness RED -> merged reviewTask (spec + quality in one pass).
+// Descope guard: deterministic backstop to the LLM reviewer. A task must not DELETE pre-existing
+// files (routes/tests/code) to reach green unless its spec authorizes it. Detection is pure git over
+// baseSha..HEAD (commit-range, so it catches a self-committed delete; -M ignores renames). Returns the
+// UNAUTHORIZED deletions; buildTask restores them and re-dispatches the implementer (bounded by MAX_FIX).
+const SCOPEACK = { type: 'object', properties: { restored: { type: 'boolean' } } }
+async function scopeGuard(task, baseSha) {
+  if (!SCOPE_GUARD || !baseSha) return { deleted: [] }
+  const g = await agent(
+    `Run \`${GIT} diff --diff-filter=D -M --name-only ${baseSha}..HEAD\` with Bash (a rename is NOT a delete). ` +
+    `Return {deleted:[paths]} — files that EXISTED at the base and are GONE now (empty array if none).`,
+    { label: `scope-guard:${task.id}`, phase: `task:${task.id}`, model: 'haiku', schema: SCOPEGUARD })
+  const deleted = (g && g.deleted) || []
+  const spec = task.spec || ''
+  // Authorized iff the task spec explicitly names the path or its basename (narrow allowlist).
+  return { deleted: deleted.filter(p => !spec.includes(p) && !spec.includes(p.split('/').pop())) }
+}
+async function restoreDeleted(task, baseSha, paths) {
+  await agent(
+    `An implementer deleted files OUT OF SCOPE. Restore them: run \`${GIT} checkout ${baseSha} -- ${paths.join(' ')}\` with Bash, then confirm \`${GIT} status\`. Return {restored:true}.`,
+    { label: `scope-restore:${task.id}`, phase: `task:${task.id}`, model: 'haiku', schema: SCOPEACK })
+}
+
+// One task end-to-end. Flow: gate -> re-witness RED -> descope guard -> merged reviewTask (spec + quality in one pass).
 // Each fix-round re-runs the full ladder so a later fix can't silently regress an earlier gate.
 async function buildTask(task) {
   const baseSha = await captureHead(task.id)   // B3: snapshot before this task's changes
@@ -588,6 +615,17 @@ async function buildTask(task) {
     if (w.applicable && !w.redWitnessed) {
       log(`${task.id}: RE-WITNESS RED FAILED — suite passed with the implementation stripped; the test does not exercise the new code. Sending back. (${w.detail || ''})`)
       r = await implement(task, ['Your new test PASSES even when the implementation is reverted/stripped — it does not actually exercise the new behavior (it asserts nothing meaningful, or never calls the new code). Rewrite the test to assert concrete expected outputs so it FAILS without the implementation, then make it pass.'], r)
+      if (!DONE_OK.has(r.status)) return await blockOrFail(task, r)
+      continue
+    }
+
+    // Descope guard: a green task must not have DELETED pre-existing files unless its spec says so.
+    // Restore + re-dispatch (consumes a fix round; MAX_FIX/thrash bound repeats -> max-fix-exhausted needsHuman).
+    const sg = await scopeGuard(task, baseSha)
+    if (sg.deleted.length) {
+      log(`${task.id}: DESCOPE GUARD — deleted pre-existing file(s) not authorized by the spec: ${sg.deleted.join(', ')}. Restoring and sending back.`)
+      await restoreDeleted(task, baseSha, sg.deleted)
+      r = await implement(task, [`You deleted pre-existing file(s) (${sg.deleted.join(', ')}) your task spec does not authorize removing — they were restored. Do NOT delete existing routes/tests/code to make the gate pass; implement the task without removing pre-existing files, or report "blocked".`], r)
       if (!DONE_OK.has(r.status)) return await blockOrFail(task, r)
       continue
     }
