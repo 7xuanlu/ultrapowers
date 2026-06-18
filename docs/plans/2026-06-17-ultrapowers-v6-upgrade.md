@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Re-sync the ultrapowers Workflow engine to Superpowers 6.0.0 — merge the two per-task reviewers into one, add the ⚠️ `cannot_verify` tier (fail-closed, routed to integration review), port the v6 reviewer hardening + diff-file handoff + implementer TDD-evidence + durable-progress ledger — with four council-found safety invariants enforced in the deterministic coordinator.
+**Goal:** Re-sync the Ultrapowers Workflow engine to Superpowers 6.0.0 — merge the two per-task reviewers into one, add the ⚠️ `cannot_verify` tier (fail-closed, routed to integration review), port the v6 reviewer hardening + diff-file handoff + implementer TDD-evidence + durable-progress ledger — with four council-found safety invariants enforced in the deterministic coordinator.
 
 **Architecture:** The engine (`workflow/ultrapowers-development.js`) is a single Workflow script with one `export` (`meta`); all other logic is module-body code that runs on injected runtime globals (`agent`, `log`, `args`, `budget`). It cannot be unit-tested conventionally. Task 1 builds a **scenario harness** (`tests/engine/harness.mjs`) that loads the engine body with a scriptable mock `agent()` and returns the engine's result object; every subsequent change is TDD'd by driving mock reviewer/gate responses and asserting on that result. Existing `tests/check-engine.sh` (syntax gate) stays and runs after every change.
 

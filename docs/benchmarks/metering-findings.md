@@ -29,7 +29,7 @@ and `result.*` already rolls them up.** So:
 ```
 ARM A (superpowers via claude -p):  use result.total_cost_usd + result.modelUsage  (authoritative, subagents included)
                                     do NOT stream-sum (it would MISS subagent tokens)
-ARM B (ultrapowers Workflow):       use the Workflow's reported subagent_tokens + agent_count,
+ARM B (Ultrapowers Workflow):       use the Workflow's reported subagent_tokens + agent_count,
                                     priced per-model; main-session delta is the tiny return object.
 ```
 

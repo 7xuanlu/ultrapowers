@@ -1,6 +1,6 @@
 # OSS landscape & novelty analysis
 
-Evidence-tagged competitive analysis behind ultrapowers' positioning. Tags: `[V url]` =
+Evidence-tagged competitive analysis behind Ultrapowers' positioning. Tags: `[V url]` =
 verified (primary source fetched/quoted), `[I]` = inferred, `[U]` = unknown. Star counts
 observed **2026-06-13**. "I did not find X" is used in place of "nobody does X", absence of
 evidence is not evidence of absence.
@@ -46,10 +46,10 @@ disabled; no ROADMAP.** The maintainer is aware of this direction and has declin
   there is a ton of value in external orchestrators, but moving to that model is dramatically
   more complicated for most users."*
 - `[V #1647]` "dynamic-workflows" loop-until-approved critic, **closed not_planned** by obra
-  2026-05-31: *"This was made up by an agent that didn't even test it."* (ultrapowers' version
+  2026-05-31: *"This was made up by an agent that didn't even test it."* (Ultrapowers' version
   IS tested, see `tests/re-witness-red/`.)
 - `[V #1647]` flags the exact constraint we solved via the command wrapper: *"workflows forbid
-  mid-run input, so SDD's implementer-asks-questions step can't be expressed."* ultrapowers puts
+  mid-run input, so SDD's implementer-asks-questions step can't be expressed."* Ultrapowers puts
   the human gates in the `/ultrapowers` command (plan approval + critical review), autonomous
   Workflow in between.
 - `[V PR #1717]` (draft, 2026-06-10), what Superpowers IS doing instead: deterministic bash
@@ -73,7 +73,7 @@ disabled; no ROADMAP.** The maintainer is aware of this direction and has declin
 
 **No framework ships {pure-code zero-context coordinator + built-in dynamic loop-until-clean
 critic}.** Magentic-One/CAMEL have the critic with an LLM coordinator; LangGraph/Workflows have
-the pure coordinator without a built-in critic. ultrapowers occupies the empty cell, by
+the pure coordinator without a built-in critic. Ultrapowers occupies the empty cell, by
 *assembling* existing pieces, plus re-witness RED.
 
 ## Open verification debt (before any public claim)

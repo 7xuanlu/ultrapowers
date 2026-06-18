@@ -1,7 +1,7 @@
-# Cost + context ladder, superpowers v6 vs ultrapowers, 24-task doc-DB (2026-06-17)
+# Cost + context ladder, superpowers v6 vs Ultrapowers, 24-task doc-DB (2026-06-17)
 
 Model-fair head-to-head: **A-opus** (superpowers **v6**, in-session LLM coordinator on opus) vs
-**B-full** (ultrapowers, deterministic JS Workflow coordinator). `impl=sonnet`, `reviewers=opus` on
+**B-full** (Ultrapowers, deterministic JS Workflow coordinator). `impl=sonnet`, `reviewers=opus` on
 both; the only structural difference is **where the orchestration loop lives**. Fixture: the
 cumulative-prefix `longtasks-docdb` build, `node --test` per task. Points {12, 24}, **N=1**, plus a
 single-task slugify reference. Cost = billed `total_cost_usd` + per-model `modelUsage.costUSD`
@@ -52,7 +52,7 @@ merged-reviewer saving (~50%, obra's own hedged figure) is a review-stage cut.
 ## Prompt fidelity (fairness disclosure)
 
 Both arms run the same discipline on the same models, but not byte-identical prompts. The A arm runs
-superpowers' **verbatim** `task-reviewer-prompt.md`. The B arm runs ultrapowers' engine, which embeds
+superpowers' **verbatim** `task-reviewer-prompt.md`. The B arm runs Ultrapowers' engine, which embeds
 the TDD skill text verbatim (`workflow/ultrapowers-development.js:172`) but ports the merged reviewer
 to a **condensed JSON-schema** form (`:466-484`): same two-verdict spec+quality structure, same
 do-not-trust-the-report, same cannot_verify/warning tier, same read-only + don't-re-run-tests +
