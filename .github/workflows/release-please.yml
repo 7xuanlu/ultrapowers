@@ -7,6 +7,10 @@ name: release-please
 # NOTE: this repo squash-merges PRs, so release-please only sees the squash-commit TITLE on
 # main. Squash titles must be Conventional Commits (feat:, fix:, docs:, chore: ...) or no
 # release is proposed. See CONTRIBUTING.md.
+#
+# The marketplace notify is folded in as an inline step (gated on release_created) rather than
+# a separate `release: published` workflow: releases created by GITHUB_TOKEN do not trigger
+# downstream `release:` workflows, so a standalone notifier would never fire.
 
 on:
   push:
@@ -21,7 +25,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # On a published release, tell the claude-plugins marketplace to re-sync pins.
+      # The marketplace's sync-marketplace workflow re-derives every plugin's pin itself,
+      # so this only needs to fire the dispatch (the client_payload is informational).
+      # Cross-repo dispatch needs a PAT (MARKETPLACE_SYNC_TOKEN); GITHUB_TOKEN can't reach it.
+      - name: Notify marketplace
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ secrets.MARKETPLACE_SYNC_TOKEN }}
+        run: |
+          gh api repos/7xuanlu/claude-plugins/dispatches \
+            -f event_type=plugin-released \
+            -F "client_payload[plugin]=ultrapowers" \
+            -F "client_payload[tag]=${{ steps.release.outputs.tag_name }}"
