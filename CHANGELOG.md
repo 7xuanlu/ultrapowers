@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.3.0...ultrapowers-v0.3.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* fold dead marketplace notify into release-please ([#16](https://github.com/7xuanlu/ultrapowers/issues/16)) ([664ea95](https://github.com/7xuanlu/ultrapowers/commit/664ea95dabea9e24aa099abb16e8fc4259119b01))
+
 ## [0.3.0](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.2.0...ultrapowers-v0.3.0) (2026-06-19)
 
 
