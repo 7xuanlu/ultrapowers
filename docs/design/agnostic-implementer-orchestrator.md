@@ -161,8 +161,9 @@ Other agreed corrections:
 ## Phased plan
 
 **Now (cheap, in the current harness):**
-- **Descope guard (deletion backstop):** `git diff --diff-filter=D -M baseSha..HEAD` →
-  restore + re-enter the existing fix-loop; ship as a deterministic fail-closed **backstop**
+- **Descope guard (deletion backstop):** `git diff --diff-filter=D -M baseSha` (baseSha vs the
+  WORKING TREE — catches committed AND uncommitted deletes, so it works in the default commit:false
+  mode where redWitness is off) → restore + re-enter the existing fix-loop; ship as a deterministic fail-closed **backstop**
   to the `workflow:485` reviewer. Either broaden to skip/truncation detection OR narrow the
   claim to deleted-files-only — do NOT claim "structurally-weakened" the D-filter can't catch.
 - **Make restore deterministic:** pure-git `baseSha` capture + restore, NOT the haiku-agent /
@@ -192,8 +193,9 @@ Other agreed corrections:
 
 - Is the task spec writable by the implementer? Determines whether the spec-mention
   allowlist is a real gaming vector (implementer mints `decompose` subtask specs at `:526-536`).
-- Pure-git deterministic restore must handle implementer **self-commits** (codex commits in
-  its turn) — restore from `baseSha..HEAD` (commit-range), not the working tree.
+- RESOLVED: the guard diffs `baseSha` vs the WORKING TREE (not `baseSha..HEAD`), so it catches
+  both committed deletes (codex self-commits in its turn) and uncommitted ones (default commit:false
+  mode where redWitness is off). Restore is `git checkout baseSha -- <paths>`.
 - Does `codex exec`'s current version expose per-path `writable_roots` (vs only the
   coarse `workspace-write` mode)? Pin exact flags before relying on it.
 - ACP scoping is per-call interactive; cost of running it non-interactively (batch) with

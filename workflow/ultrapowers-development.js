@@ -571,14 +571,16 @@ async function triageConcerns(task, r) {
 }
 
 // Descope guard: deterministic backstop to the LLM reviewer. A task must not DELETE pre-existing
-// files (routes/tests/code) to reach green unless its spec authorizes it. Detection is pure git over
-// baseSha..HEAD (commit-range, so it catches a self-committed delete; -M ignores renames). Returns the
-// UNAUTHORIZED deletions; buildTask restores them and re-dispatches the implementer (bounded by MAX_FIX).
+// files (routes/tests/code) to reach green unless its spec authorizes it. Detection is pure git: diff
+// baseSha vs the WORKING TREE (NOT baseSha..HEAD — a commit-range would be empty in the default
+// commit:false mode, where redWitness is also off, and miss uncommitted deletes). -M ignores renames.
+// Returns the UNAUTHORIZED deletions; buildTask restores them + re-dispatches the implementer (bounded by MAX_FIX).
 const SCOPEACK = { type: 'object', properties: { restored: { type: 'boolean' } } }
 async function scopeGuard(task, baseSha) {
   if (!SCOPE_GUARD || !baseSha) return { deleted: [] }
   const g = await agent(
-    `Run \`${GIT} diff --diff-filter=D -M --name-only ${baseSha}..HEAD\` with Bash (a rename is NOT a delete). ` +
+    `Run \`${GIT} diff --diff-filter=D -M --name-only ${baseSha}\` with Bash — baseSha vs the WORKING TREE, ` +
+    `so it catches deletions whether committed or not (a rename is NOT a delete). ` +
     `Return {deleted:[paths]} — files that EXISTED at the base and are GONE now (empty array if none).`,
     { label: `scope-guard:${task.id}`, phase: `task:${task.id}`, model: 'haiku', schema: SCOPEGUARD })
   const deleted = (g && g.deleted) || []
