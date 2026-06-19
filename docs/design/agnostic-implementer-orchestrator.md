@@ -1,8 +1,18 @@
 # Agnostic implementer orchestrator — design & future plan
 
-Status: design note (not yet built). Captures the direction discussed for making
-the build harness treat any backend (claude / codex / gemini / …) as an
-interchangeable, controlled implementer subagent.
+Status: the "Now" items are BUILT (PAT child-shell scrub, deletion descope-guard,
+deny→blocked mapping — see commits on this branch); the agnostic-orchestrator / ACP
+refactor remains a deferred design note. Captures the direction for making the build
+harness treat any backend (claude / codex / gemini / …) as an interchangeable,
+controlled implementer subagent.
+
+> **Merge-review (/boule:debate, 2026-06-18 — approve-with-changes, no merge-blocking defect).**
+> Security note (ORTHOGONAL — not a gate on this PR): the GitHub PAT exposure is
+> pre-existing config, NOT introduced by this work; this PR *reduces* it via the `env -u`
+> scrub. Rotating the token is a separate operational follow-up on the maintainer's own
+> timeline. Non-blocking hardening follow-ups: tighten the spec-mention allowlist
+> (basename collision) and confirm task specs are orchestrator-supplied, not
+> implementer-writable.
 
 ## Problem
 
