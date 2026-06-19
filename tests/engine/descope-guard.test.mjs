@@ -76,3 +76,29 @@ test('descope guard diffs baseSha vs the working tree (catches uncommitted delet
   assert.match(guardPrompt, new RegExp('diff --diff-filter=D -M --name-only ' + sha + '\\b'), 'must diff baseSha against the working tree')
   assert.doesNotMatch(guardPrompt, new RegExp(sha + '\\.\\.HEAD'), 'must NOT be a commit-range diff (would miss uncommitted deletes in the default commit:false mode)')
 })
+
+// Basename-collision hole: the spec authorizes deleting ONE file, the implementer deletes a DIFFERENT
+// file that merely shares the basename in another directory. The old substring allowlist
+// (`spec.includes(basename)`) waved it through; authorization must require the spec to name the file's
+// exact repo-relative path, not just a colliding basename.
+test('descope guard does NOT authorize a deletion that only collides on basename with a spec-mentioned path', async () => {
+  let restoreCalled = false
+  const { agent } = makeAgent((p, o) => {
+    const l = o.label || ''
+    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l.startsWith('capture-head:')) return { sha: 'b'.repeat(40) }
+    if (l.startsWith('claude:')) return { status: 'done', files: ['src/x.js'], summary: 'ok' }
+    if (l.startsWith('verify:')) return { code: 0, tail: 'ok' }
+    if (l.startsWith('red-witness:')) return { applicable: false }
+    // spec authorizes deleting src/old/index.js; implementer instead deleted a DIFFERENT index.js
+    if (l.startsWith('scope-guard:')) return { deleted: ['src/critical/index.js'] }
+    if (l.startsWith('scope-restore:')) { restoreCalled = true; return { restored: true } }
+    if (l.startsWith('checkpoint:')) return {}
+    if (l.startsWith('review-package:')) return { path: '/tmp/up.diff' }
+    if (l.startsWith('review-task:')) return { specVerdict: 'pass', findings: [], cannotVerify: [], strengths: [], assessment: 'ok' }
+    if (l === 'integration-review') return { approved: true, findings: [] }
+    return undefined
+  })
+  await runEngine({ args: { tasks: [{ id: 't1', spec: 'delete the obsolete src/old/index.js' }], implementer: 'claude', verifyCmd: 'true', commit: true }, agent, log: () => {} })
+  assert.ok(restoreCalled, 'a same-basename file in a different dir must NOT be authorized by the spec (basename-collision hole)')
+})
