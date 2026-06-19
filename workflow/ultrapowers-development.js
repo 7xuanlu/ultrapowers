@@ -585,8 +585,13 @@ async function scopeGuard(task, baseSha) {
     { label: `scope-guard:${task.id}`, phase: `task:${task.id}`, model: 'haiku', schema: SCOPEGUARD })
   const deleted = (g && g.deleted) || []
   const spec = task.spec || ''
-  // Authorized iff the task spec explicitly names the path or its basename (narrow allowlist).
-  return { deleted: deleted.filter(p => !spec.includes(p) && !spec.includes(p.split('/').pop())) }
+  // Authorized iff the spec names the file's exact repo-relative path as a whole token. The old check
+  // — `!spec.includes(p) && !spec.includes(basename)` — was a loose substring that (a) matched fragments
+  // ("utils.js" inside "myutils.js") and, worse, (b) let a bare basename authorize deleting a SAME-NAMED
+  // file in ANY other directory (the basename-collision hole). Whole-token full-path match closes both.
+  // ponytail: full path only; if real specs authorize deletes by dir-qualified suffix, loosen to suffix match then.
+  const named = new Set(spec.split(/[\s,;'"`()\[\]<>]+/).filter(Boolean))
+  return { deleted: deleted.filter(p => !named.has(p)) }
 }
 async function restoreDeleted(task, baseSha, paths) {
   await agent(
