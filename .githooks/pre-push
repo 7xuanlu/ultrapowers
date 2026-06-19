@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# pre-push: run the invariant-reviewer on the outgoing diff vs origin/main and BLOCK the push
+# on a CRITICAL invariant violation. Contributor convenience gate — NOT a security control.
+#
+#   Enable (once per clone):  npm run hooks:install     # = git config core.hooksPath .githooks
+#   Bypass a single push:     git push --no-verify       (or: SKIP_INVARIANT_REVIEW=1 git push)
+#
+# Requires the `claude` CLI (Claude Code) authed locally. If it is missing, the review times out,
+# or it cannot complete, the hook FAILS OPEN (warns, allows the push). Only an explicit critical
+# finding blocks — so a tooling hiccup never wedges your push.
+set -uo pipefail
+
+[ "${SKIP_INVARIANT_REVIEW:-}" = "1" ] && { echo "pre-push: invariant review skipped (SKIP_INVARIANT_REVIEW=1)."; exit 0; }
+
+command -v claude >/dev/null 2>&1 || { echo "pre-push: 'claude' CLI not found — skipping invariant review." >&2; exit 0; }
+
+base="$(git merge-base origin/main HEAD 2>/dev/null || true)"
+[ -n "$base" ] || { echo "pre-push: no merge-base with origin/main — skipping invariant review." >&2; exit 0; }
+
+# Only review when the outgoing diff touches invariant-relevant files (keeps WIP pushes fast/free).
+changed="$(git diff --name-only "$base"...HEAD -- \
+  workflow/ .claude-plugin/ hooks/hooks.json README.md docs/benchmarks/ \
+  SECURITY.md NOTICE LICENSE-superpowers package.json 2>/dev/null || true)"
+[ -n "$changed" ] || { echo "pre-push: diff touches no invariant-relevant files — skipping."; exit 0; }
+
+echo "pre-push: running invariant-reviewer on diff vs origin/main (opus, ~1 min). Bypass: git push --no-verify"
+prompt="Read .claude/agents/invariant-reviewer.md and apply its invariant checklist to the changes on this branch versus origin/main (the diff 'git diff ${base}...HEAD'). Read whatever changed files you need. Print each finding as '[critical|important|minor] <invariant> file:line — issue'. Then, on the VERY LAST line, print exactly 'INVARIANT_GATE: block' if there is at least one CRITICAL invariant violation, otherwise 'INVARIANT_GATE: pass'."
+tools="Read,Grep,Glob,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(git rev-parse:*)"
+
+# perl alarm = portable timeout (macOS lacks coreutils `timeout`); the alarm survives exec and kills claude at 180s.
+out="$(perl -e 'alarm shift @ARGV; exec @ARGV' 180 claude -p "$prompt" --model opus --allowedTools "$tools" 2>&1 || true)"
+printf '%s\n' "$out"
+
+if printf '%s\n' "$out" | grep -q '^INVARIANT_GATE: block'; then
+  echo "" >&2
+  echo "pre-push: BLOCKED — critical invariant violation (see above). Fix it, or bypass with: git push --no-verify" >&2
+  exit 1
+fi
+echo "pre-push: invariant review passed (no critical violations)."
+exit 0
