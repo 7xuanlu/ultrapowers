@@ -220,7 +220,7 @@ on other agents is the main open goal, not a promise yet.
 
 Contributions are held to the same bar Ultrapowers enforces on the code it builds: TDD,
 re-witness-RED, surgical changes. Start with [`CONTRIBUTING.md`](./CONTRIBUTING.md) and
-[`AGENT.md`](./AGENT.md) (the agent and operator manual); all participation is under the
+[`AGENTS.md`](./AGENTS.md) (the agent and operator manual); all participation is under the
 [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) (Contributor Covenant).
 
 ## License
