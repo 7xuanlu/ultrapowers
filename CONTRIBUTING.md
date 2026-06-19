@@ -4,7 +4,7 @@ Thanks for considering a contribution. ultrapowers is a small, opinionated tool.
 **complements** [Superpowers](https://github.com/obra/superpowers) rather than replacing it, and
 contributions are held to the same discipline it enforces on the code it builds.
 
-Read [`AGENT.md`](./AGENT.md) first; it is the operating manual (the discipline bar, load-bearing
+Read [`AGENTS.md`](./AGENTS.md) first; it is the operating manual (the discipline bar, load-bearing
 invariants, verification commands, security carve-out, and attribution rules). This file is the
 human-facing process on top of it.
 

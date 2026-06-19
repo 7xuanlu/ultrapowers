@@ -17,7 +17,7 @@ Closed this session (worktree `launch-readiness`):
 - ✅ **P0** `.claude-plugin/marketplace.json`, self-contained single-plugin marketplace (`source: "./"`).
 - ✅ **P0** `.github/workflows/ci.yml`, runs `npm run check` + JSON-manifest validation. (Re-witness
   self-test spends tokens / needs auth → runtime/manual gate, not in CI; documented in the workflow.)
-- ✅ `AGENT.md` + `CLAUDE.md` (imports `@AGENT.md`), repo operating manual for contributing agents.
+- ✅ `AGENTS.md` + `CLAUDE.md` (imports `@AGENTS.md`), repo operating manual for contributing agents.
 - ✅ README, added **Safety** section linking `SECURITY.md`, a Requirements note, and the direct
   self-marketplace install path.
 

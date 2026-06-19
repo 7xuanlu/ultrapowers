@@ -1,6 +1,6 @@
-@AGENT.md
+@AGENTS.md
 
-# CLAUDE.md, Claude Code specifics for ultrapowers (shared principles are in AGENT.md above)
+# CLAUDE.md, Claude Code specifics for ultrapowers (shared principles are in AGENTS.md above)
 
 ## Workflow
 

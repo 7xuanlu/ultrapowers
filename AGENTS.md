@@ -51,6 +51,22 @@ runtime/manual gate (it cannot run in stock CI).
   which needs no external CLI. The engine's raw fallback is `codex` (`:94`), only reached when the
   engine is dispatched directly with no `implementer` arg.
 
+## Editing the engine, footguns
+
+The engine (`workflow/ultrapowers-development.js`) is a Workflow script, not a normal module.
+Things that bite:
+
+- **`args` arrives as a JSON string, not an object.** The engine parses it once into `_args`
+  (`:80-81`); read new args from `_args`, never assume an object.
+- **`tasks` must be `[{id,spec}]` objects.** Bare strings are dropped; the engine validates
+  fail-loud (incl. empty/whitespace `id`/`spec`). Format + footgun: `reference/task-list.md`.
+- **`meta.phases` declares only `Plan` + `Preflight` on purpose** (`:13-16`). Per-task `Build`
+  and final `Integrate` are *dynamic* progress groups (`task:<id>`, then `Integrate`) so
+  /workflows renders in true execution order; declaring them statically breaks that. Don't.
+- **Workflow-script constraints:** plain JS (no TypeScript syntax); `Date.now()` /
+  `Math.random()` / argless `new Date()` are unavailable (they break resume). Pass timestamps via
+  args; vary by index for randomness.
+
 ## Security, unattended code execution
 
 The harness writes files, runs `verifyCmd`, and commits, across subagents, with no human in the
