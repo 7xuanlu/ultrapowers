@@ -33,6 +33,22 @@ npm run test:rewitness # re-witness-RED catch path, SPENDS TOKENS / needs Claude
 CI runs `npm run check` + manifest validation only. Run `test:rewitness` locally before any change
 to engine behavior and confirm the vacuous test is CAUGHT and the good test passes.
 
+### Optional: local invariant-review gate
+
+So you never forget to run the `invariant-reviewer` before a PR, enable the local pre-push hook:
+
+```
+npm run hooks:install   # = git config core.hooksPath .githooks
+```
+
+On `git push`, when the outgoing diff touches an invariant-relevant file — the engine, embedded
+prompts, manifests (`.claude-plugin/`, `package.json`, `hooks/hooks.json`), `README.md`,
+`docs/benchmarks/`, `SECURITY.md`, or the `NOTICE`/`LICENSE-superpowers` attribution files — it
+dispatches the `invariant-reviewer` (opus, ~1 min) and **blocks the push on a critical invariant violation**.
+It needs the `claude` CLI authed locally; if absent or it can't complete, it fails open (warns,
+allows). Bypass any push with `git push --no-verify` (or `SKIP_INVARIANT_REVIEW=1 git push`).
+Note: `core.hooksPath` makes git use `.githooks/` for all hooks, superseding `.git/hooks/`.
+
 ## Where things live
 
 | path | what |

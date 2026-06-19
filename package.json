@@ -8,6 +8,7 @@
   "scripts": {
     "check": "bash tests/check-engine.sh",
     "test:engine": "node --test tests/engine/*.test.mjs",
-    "test:rewitness": "bash tests/re-witness-red/seed.sh"
+    "test:rewitness": "bash tests/re-witness-red/seed.sh",
+    "hooks:install": "git config core.hooksPath .githooks"
   }
 }
