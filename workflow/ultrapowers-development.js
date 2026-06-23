@@ -803,6 +803,29 @@ async function witnessCommand(cmd) {
   return !(w && w.redWitnessed === false)
 }
 
+const CACHE_REACH = { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, detail: { type: 'string' } } }
+// Make a fresh worktree's build cache warm without per-ecosystem logic: act on the scout's cacheType.
+// 'local-dir' → symlink the named dirs from the repo's COMMON checkout into the worktree (reversible);
+// refuse if the main checkout is mid-build (external mutation would poison a shared dir). 'wrapper'/'remote'
+// keep the wrapper (UP never blanks it); a wrapper whose allowlist isn't granted just logs a cold-build warning.
+async function cacheReach(info) {
+  if (!info || info.type === 'none') return
+  if (info.type === 'wrapper' || info.type === 'remote') {
+    log(`cache: type=${info.type} wrapper=${info.wrapper || 'n/a'} — wrapper kept (never blanked).` +
+        (info.allowlist && info.allowlist.length ? ` REQUIRES sandbox write-allowlist for: ${info.allowlist.join(', ')} (one-time supervised grant) — else builds run COLD.` : ''))
+    return
+  }
+  if (info.type === 'local-dir' && info.dirs && info.dirs.length && repoDir) {
+    await agent(
+      `Warm this worktree's build cache by sharing it from the repo's main checkout.` + REPO_NOTE + `\n` +
+      `STEP 1 — find the common checkout: \`${GIT} rev-parse --git-common-dir\` (its parent is the main worktree root). If repoDir IS the common checkout (not a linked worktree), STOP and return {ok:true, detail:"main checkout — cache already warm"}.\n` +
+      `STEP 2 — SAFETY: if the main checkout has a build actively running (e.g. a lock under ${info.dirs.join('/, ')} held, or an obvious in-progress build), STOP and return {ok:false, detail:"main checkout busy — not sharing to avoid cache poisoning"}.\n` +
+      `STEP 3 — for EACH of these dirs [${info.dirs.join(', ')}]: if it is absent in the worktree but present in the main checkout, symlink it in: \`ln -s <main>/<dir> ${repoDir}/<dir>\`. Do NOT overwrite an existing real dir.\n` +
+      `Return {ok:true, detail:"symlinked <dirs>"}.`,
+      { label: 'cache-reach', phase: 'Preflight', model: 'haiku', schema: CACHE_REACH })
+  }
+}
+
 async function preflight() {
   if (!isExternal()) return { ok: true, detail: 'claude implementer — no external CLI to cross-check' }
 
@@ -873,6 +896,7 @@ if (goal && !verifyCmd) {
     if (!FULL_VERIFY_CMD) FULL_VERIFY_CMD = sc.fullVerifyCmd || sc.verifyCmd
     cacheInfo = { type: sc.cacheType, wrapper: sc.cacheWrapper || null, dirs: sc.cacheDirs || [], allowlist: sc.allowlistPaths || [] }
     log(`scout: verifyCmd="${verifyCmd}" (red-witnessed); fullVerifyCmd="${FULL_VERIFY_CMD}"; cacheType=${sc.cacheType}`)
+    await cacheReach(cacheInfo)
   } else if (sc && sc.verifyCmd) {
     log(`scout: discovered "${sc.verifyCmd}" but it stayed GREEN on a seeded break — REJECTED (vacuous gate); deterministic gate skipped, LLM review only`)
   } else {
