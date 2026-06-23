@@ -95,7 +95,7 @@ const OUTAGE_STREAK = 3  // consecutive fallbacks => degraded (likely correlated
 
 const tasks     = _args.tasks     || []
 const goal      = _args.goal      || null
-const verifyCmd = _args.verifyCmd  || null
+let verifyCmd = _args.verifyCmd  || null
 const logFile   = _args.logFile    || null
 const doCommit  = !!_args.commit
 const MAX_ROUNDS = _args.maxRounds || 3
@@ -782,6 +782,26 @@ async function scout() {
     { label: 'scout', phase: 'Preflight', model: 'opus', schema: SCOUT })
 }
 
+// Red-witness the DISCOVERED command: seed a guaranteed break, confirm the command goes RED, restore.
+// A command that stays green on broken code is a vacuous gate — reject it (would silently defeat the
+// "don't trust the self-report" identity). Fail-OPEN: only a definite redWitnessed:false rejects.
+async function witnessCommand(cmd) {
+  if (!doCommit) return true   // no per-commit restore guarantee → can't safely seed/revert; trust (insurance, not primary)
+  const file = `/tmp/up-scout-verify.sh`
+  const sec = Math.ceil(VERIFY_TIMEOUT_MS / 1000)
+  const w = await agent(
+    `RED-WITNESS the discovered verify command — prove it exercises the code (not a vacuous pass).` + REPO_NOTE + `\n` +
+    `STEP 1 — pick ONE production source file (NOT a test, NOT config) and make a SMALL guaranteed-breaking change (flip a boolean, change a return value, or introduce a syntax error). Note the file.\n` +
+    `STEP 2 — write this command VERBATIM to ${file}: ${cmd}\n` +
+    `STEP 3 — run it under the structural timeout (SET Bash \`timeout\` to ${VERIFY_TIMEOUT_MS + 30000}); run EXACTLY:\n` +
+    `  ${wrapWatchdog('sh', sec, file)}; echo "__RC__=$?"\n` +
+    `STEP 4 — ALWAYS restore: \`${GIT} checkout -- <the file you changed>\`, confirm \`${GIT} status\` clean, even if STEP 3 errored.\n` +
+    `Return {applicable:true, redWitnessed:<true iff __RC__ was NON-zero — the command FAILED on the broken code, which is GOOD>, detail:"<what you broke; RC>"}. ` +
+    `redWitnessed=false ONLY if the command PASSED (RC=0) despite the real break = vacuous gate.`,
+    { label: 'scout-witness', phase: 'Preflight', model: 'haiku', schema: REDWITNESS })
+  return !(w && w.redWitnessed === false)
+}
+
 async function preflight() {
   if (!isExternal()) return { ok: true, detail: 'claude implementer — no external CLI to cross-check' }
 
@@ -844,7 +864,11 @@ const pf = await preflight()
 if (!pf.ok) { log(`ABORT: preflight repo mismatch — ${pf.detail}`); return { aborted: 'preflight', detail: pf.detail, total: tasks.length } }
 // Scout: when running in goal mode without a caller-supplied verifyCmd, discover the verify command
 // and build cache shape by reading the repo. Runs once, in Preflight, before any task is built.
-const scoutResult = (goal && !verifyCmd) ? await scout() : null
+// Self-configure the per-task gate when the caller supplied none (SP-like discovery).
+if (goal && !verifyCmd) {
+  const sc = await scout()
+  if (sc && sc.verifyCmd && await witnessCommand(sc.verifyCmd)) verifyCmd = sc.verifyCmd
+}
 const accCannotVerify = []   // [{task, items}] — ⚠️ items from passing tasks, resolved at integration (H3)
 const resume = await loadResume()
 const alreadyDone = resume.done
