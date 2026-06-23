@@ -301,6 +301,21 @@ It is always OK to stop and say "this is too hard for me." Bad work is worse tha
 - You feel uncertain whether your approach is correct.
 - You've been reading file after file trying to understand the system without progress.`
 
+// ---- structural timeout watchdog (Component C) ----
+// One process-GROUP-killing watchdog, reused by EVERY long/hang-prone command (codex exec AND the
+// deterministic gate: verify, redWitness, integration). Forks the target into a NEW session (setsid;
+// timeout/gtimeout/setsid as a CLI are ABSENT on stock macOS), feeds it stdinFile as STDIN (default
+// /dev/null), and at the deadline SIGKILLs the target's WHOLE process group and exits 124. Crucially it
+// returns control to the caller's shell GRACEFULLY — it kills the CHILD group, not the caller — so a
+// trailing `; echo "__RC__=$?"` still runs and the 124 marker the fix-loop reads SURVIVES the kill. A
+// raw Bash-tool timeout instead kills the agent's shell and loses that marker. `exec @ARGV` accepts a
+// multi-word argv (e.g. `env -u … codex exec … -`, or `sh` reading a verify script from stdinFile).
+// Mechanism is guarded by tests/watchdog.sh (extracts WATCHDOG_PERL and asserts kill + 124 + marker).
+const WATCHDOG_PERL = `perl -e 'use POSIX qw(setsid); my $t=shift; my $in=shift; my $p=fork; die "fork" unless defined $p; if($p==0){setsid(); open(STDIN,"<",$in) or die "stdin"; exec @ARGV or die "exec"} $SIG{ALRM}=sub{kill("KILL",-$p); waitpid($p,0); exit 124}; alarm $t; waitpid($p,0); my $c=$?>>8; my $s=$?&127; exit($s?128+$s:$c)'`
+// Wrap a command under the watchdog. argv: the command (multi-word ok). timeoutSec: hard cap.
+// stdinFile: fed to the command as STDIN — used to pass a brief (codex) or a verify script (`sh`).
+const wrapWatchdog = (argv, timeoutSec, stdinFile = '/dev/null') => `${WATCHDOG_PERL} ${timeoutSec} ${stdinFile} ${argv}`
+
 // ---- implementer ----
 // Pluggable: cheap external CLI with capable Claude fallback, or Claude direct with model routing.
 //  • codex  -> `codex exec` (non-interactive batch) run via Bash — fresh ephemeral process per task, NO
@@ -352,7 +367,7 @@ async function implement(task, issues, prior) {
         // including secrets the trusted MCP server needs but an external CLI must not read (e.g. the GitHub
         // PAT injected by settings.json env). `env -u` scrubs them from codex's child shell; the MCP server
         // (in-process) still gets them. `-s workspace-write` only confines writes, not env reads.
-        const cmd = `perl -e 'use POSIX qw(setsid); my $t=shift; my $in=shift; my $p=fork; die "fork" unless defined $p; if($p==0){setsid(); open(STDIN,"<",$in) or die "stdin"; exec @ARGV or die "exec"} $SIG{ALRM}=sub{kill("KILL",-$p); waitpid($p,0); exit 124}; alarm $t; waitpid($p,0); my $c=$?>>8; my $s=$?&127; exit($s?128+$s:$c)' ${Math.ceil(CODEX_TIMEOUT_MS / 1000)} ${briefFile} env -u GITHUB_PERSONAL_ACCESS_TOKEN codex exec --cd ${repoDir || '.'} --ephemeral --skip-git-repo-check -s workspace-write${modelFlag}${reasonFlag} -`
+        const cmd = wrapWatchdog(`env -u GITHUB_PERSONAL_ACCESS_TOKEN codex exec --cd ${repoDir || '.'} --ephemeral --skip-git-repo-check -s workspace-write${modelFlag}${reasonFlag} -`, Math.ceil(CODEX_TIMEOUT_MS / 1000), briefFile)
         return (
           `Implement this with the Codex CLI in NON-INTERACTIVE batch mode (codex exec). Do NOT use any MCP tool.\n\n` +
           `STEP 1 — write the BRIEF below VERBATIM (no edits, no summarizing) to ${briefFile} using the Write tool.\n` +
@@ -428,15 +443,22 @@ async function implement(task, issues, prior) {
 // Deterministic project gate — runs the REAL command so approval never rests on a self-report.
 async function verify(task) {
   if (!verifyCmd) return { passed: true, tail: '(no args.verifyCmd — deterministic gate skipped; LLM review only)' }
-  // N8: the agent does NOT judge pass/fail. It runs the command, captures the real exit code via a
-  // marker, and copies the integer. The HARNESS decides passed = (code === 0) — deterministic.
-  // #1 TIMEOUT: a hanging test (infinite loop in the code) must not stall the run. The agent sets the Bash
-  // tool timeout; if the command is killed for running too long, that is exit 124 = not passed = re-implement.
+  // N8: the agent does NOT judge pass/fail — it runs the command, captures the real exit code via the
+  // __RC__ marker, and copies the integer. The HARNESS decides passed = (code === 0) — deterministic.
+  // #1 TIMEOUT (Component C): the gate is wrapped in the structural watchdog, so a hanging test (infinite
+  // loop in the code) — or a legitimately long suite that blows the cap — is SIGKILLed at VERIFY_TIMEOUT_MS
+  // and surfaces as exit 124 = not passed, REGARDLESS of whether the agent honors the Bash-tool timeout (it
+  // often did not — uncapped gate agents ran 55-117 min). The watchdog returns control gracefully so the
+  // trailing `; echo "__RC__=$?"` still prints __RC__=124. verifyCmd is passed via a file (no quoting hazard).
+  const verifyFile = `/tmp/up-verify-${task.id}.sh`
+  const sec = Math.ceil(VERIFY_TIMEOUT_MS / 1000)
   const v = await agent(
-    `Run this project's verify command with Bash, then capture its exit code. SET the Bash tool \`timeout\` parameter to ${VERIFY_TIMEOUT_MS} (ms). Run EXACTLY this (do NOT edit any files):\n` +
-    `  ${verifyCmd}; echo "__RC__=$?"\n` +
-    `If the Bash call TIMES OUT (the command hung), return {code:124, tail:"verify TIMED OUT after ${VERIFY_TIMEOUT_MS}ms — likely an infinite loop / hang in the code"}.\n` +
-    `Otherwise find the line "__RC__=<n>" in the output and return {code:<that integer n, e.g. 0 or 1>, tail:"last ~20 lines of output"}. Do NOT interpret — just copy the integer.`,
+    `Run this project's verify command under a structural timeout, then report its exit code. Do NOT edit any project files.\n` +
+    `STEP 1 — write the VERIFY COMMAND below VERBATIM to ${verifyFile} using the Write tool.\n` +
+    `STEP 2 — run EXACTLY this with the Bash tool (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS + 30000} (ms) as a BACKSTOP; the command self-enforces a ${sec}s hard cap that SIGKILLs the command's whole process group and exits 124):\n` +
+    `  ${wrapWatchdog('sh', sec, verifyFile)}; echo "__RC__=$?"\n` +
+    `STEP 3 — find the line "__RC__=<n>" and return {code:<that integer n; 124 means the command TIMED OUT / hung>, tail:"last ~20 lines of output"}. Do NOT interpret — just copy the integer.\n\n` +
+    `--- VERIFY COMMAND (write to ${verifyFile} verbatim) ---\n${verifyCmd}`,
     { label: `verify:${task.id}`, phase: `task:${task.id}`, model: 'haiku', schema: VERIFY })
   if (!v) return { passed: false, tail: 'verify agent errored' }
   return { passed: v.code === 0, code: v.code, tail: v.tail || '' }
@@ -451,6 +473,8 @@ async function verify(task) {
 // still goes red -> we under-detect (never false-reject). Restore is the agent's mandatory STEP 4.
 async function redWitness(task, baseSha) {
   if (!RED_WITNESS || !verifyCmd || !doCommit || !baseSha) return { applicable: false }
+  const rwFile = `/tmp/up-redwitness-${task.id}.sh`
+  const sec = Math.ceil(VERIFY_TIMEOUT_MS / 1000)
   const w = await agent(
     `RE-WITNESS RED for task ${task.id}: confirm this task's NEW test fails without its implementation.` + REPO_NOTE + `\n\n` +
     `STEP 1 — list this task's changed files: \`${GIT} diff --name-only ${baseSha}..HEAD\`. Classify each as TEST ` +
@@ -458,8 +482,8 @@ async function redWitness(task, baseSha) {
     `If there are NO test files OR NO production files in the diff, STOP and return {applicable:false, detail:"<why>"}.\n` +
     `STEP 2 — revert ONLY the PRODUCTION files to their pre-task state, leaving the new tests in place: ` +
     `\`${GIT} checkout ${baseSha} -- <each prod path>\`. (If a prod file is NEW to this task, this removes it — correct.)\n` +
-    `STEP 3 — run the verify command and capture its exit code (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS}); run EXACTLY:\n` +
-    `  ${verifyCmd}; echo "__RC__=$?"\n` +
+    `STEP 3 — write the verify command \`${verifyCmd}\` VERBATIM to ${rwFile} (Write tool), then run it under the structural timeout and capture its exit code (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS + 30000} as a BACKSTOP; it self-enforces a ${sec}s cap → SIGKILL → exit 124); run EXACTLY:\n` +
+    `  ${wrapWatchdog('sh', sec, rwFile)}; echo "__RC__=$?"\n` +
     `STEP 4 — ALWAYS restore the tree before returning: \`${GIT} checkout HEAD -- <the same prod paths>\`, then confirm \`${GIT} status\` is clean. Do this even if STEP 3 errored.\n` +
     `Return {applicable:true, redWitnessed:<true iff __RC__ was NON-zero — the suite went RED without the impl, which is GOOD>, detail:"reverted <prod files>; suite RC=<n>"}. ` +
     `redWitnessed is false ONLY if the suite still PASSED (RC=0) without the implementation.`,
@@ -854,7 +878,7 @@ if (passedIds.length) {
   integration = await agent(
     `Adversarial fresh-eye review of the ENTIRE integrated implementation (tasks: ${passedIds.join(', ')}).` + REPO_NOTE +
     (goal ? ` GOAL:\n${goal}\n` : ' ') +
-    (finalGate ? `FIRST, run the FULL verify suite as the final gate (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS}): \`${finalGate}\`. If it exits non-zero OR times out, set approved:false with a CRITICAL finding quoting the failure — a red suite blocks integration no matter how clean the code looks.\n\n` : '') +
+    (finalGate ? `FIRST, run the FULL verify suite as the final gate under a structural timeout: write the command \`${finalGate}\` VERBATIM to /tmp/up-finalgate.sh (Write tool), then run EXACTLY (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS + 30000} as a BACKSTOP; it self-enforces a ${Math.ceil(VERIFY_TIMEOUT_MS / 1000)}s cap → SIGKILL whole process group → exit 124):\n  ${wrapWatchdog('sh', Math.ceil(VERIFY_TIMEOUT_MS / 1000), '/tmp/up-finalgate.sh')}; echo "__RC__=$?"\nIf __RC__ is non-zero (124 = the suite TIMED OUT / hung), set approved:false with a CRITICAL finding quoting the failure — a red or hung suite blocks integration no matter how clean the code looks.\n\n` : '') +
     (accCannotVerify.length ? `\n\nRESOLVE THESE cross-task / unchanged-code requirements the per-task reviewers could NOT verify from their scoped diffs. For EACH, confirm it is actually satisfied in the whole tree; if any is a real gap, set approved:false with a critical finding:\n${accCannotVerify.flatMap(c => c.items.map(it => `- [${c.task}] ${it}`)).join('\n')}\n` : '') +
     `Inspect the full working tree (\`${GIT} diff\`/\`${GIT} status\`, read files). Look for:\n` +
     `- Cross-task regressions, inconsistent interfaces, duplicated logic\n` +
