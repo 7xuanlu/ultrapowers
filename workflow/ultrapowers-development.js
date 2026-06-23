@@ -138,7 +138,8 @@ const VERIFY_TIMEOUT_MS = _args.verifyTimeoutMs || 180_000
 // #3: optional FINAL full-suite gate. Per-task verify (verifyCmd) should be FAST/scoped so the fix-loop isn't
 // paying the whole suite every round; pass fullVerifyCmd to run the comprehensive suite ONCE at integration.
 // Null = the integration gate reuses verifyCmd.
-const FULL_VERIFY_CMD = _args.fullVerifyCmd || null
+let FULL_VERIFY_CMD = _args.fullVerifyCmd || null
+let cacheInfo = null   // {type, wrapper, dirs, allowlist} from scout; consumed by cacheReach (Task 4)
 // P1-strip re-witness RED (empirically motivated, near-zero cost): after the gate is GREEN, revert ONLY this
 // task's PRODUCTION files to their pre-task state (keeping the new tests) and re-run the suite. A correct test
 // MUST go red without its implementation; if the suite still PASSES, the test does not exercise the new code
@@ -867,7 +868,16 @@ if (!pf.ok) { log(`ABORT: preflight repo mismatch — ${pf.detail}`); return { a
 // Self-configure the per-task gate when the caller supplied none (SP-like discovery).
 if (goal && !verifyCmd) {
   const sc = await scout()
-  if (sc && sc.verifyCmd && await witnessCommand(sc.verifyCmd)) verifyCmd = sc.verifyCmd
+  if (sc && sc.verifyCmd && await witnessCommand(sc.verifyCmd)) {
+    verifyCmd = sc.verifyCmd
+    if (!FULL_VERIFY_CMD) FULL_VERIFY_CMD = sc.fullVerifyCmd || sc.verifyCmd
+    cacheInfo = { type: sc.cacheType, wrapper: sc.cacheWrapper || null, dirs: sc.cacheDirs || [], allowlist: sc.allowlistPaths || [] }
+    log(`scout: verifyCmd="${verifyCmd}" (red-witnessed); fullVerifyCmd="${FULL_VERIFY_CMD}"; cacheType=${sc.cacheType}`)
+  } else if (sc && sc.verifyCmd) {
+    log(`scout: discovered "${sc.verifyCmd}" but it stayed GREEN on a seeded break — REJECTED (vacuous gate); deterministic gate skipped, LLM review only`)
+  } else {
+    log(`scout: no verify command discovered — deterministic gate skipped, LLM review only`)
+  }
 }
 const accCannotVerify = []   // [{task, items}] — ⚠️ items from passing tasks, resolved at integration (H3)
 const resume = await loadResume()
