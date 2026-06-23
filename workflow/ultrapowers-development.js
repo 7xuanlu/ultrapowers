@@ -63,6 +63,13 @@ const RESUME = { type: 'object', required: ['done'], properties: {
 const SPVER = { type: 'object', required: ['installed'], properties: { installed: { type: 'array', items: { type: 'string' } } } }
 const TASK = { type: 'object', required: ['id', 'spec'], properties: { id: { type: 'string' }, spec: { type: 'string' } } }
 const PLAN = { type: 'object', required: ['tasks'], properties: { tasks: { type: 'array', items: TASK } } }
+const SCOUT = { type: 'object', required: ['cacheType'], properties: {
+  verifyCmd:      { type: ['string', 'null'] },
+  fullVerifyCmd:  { type: ['string', 'null'] },
+  cacheType:      { enum: ['wrapper', 'local-dir', 'remote', 'none'] },
+  cacheWrapper:   { type: ['string', 'null'] },
+  cacheDirs:      { type: 'array', items: { type: 'string' } },
+  allowlistPaths: { type: 'array', items: { type: 'string' } } } }
 // N2: graduated-BLOCKED step 3 — split a too-large blocked task into smaller pieces before human escalation.
 const DECOMP = { type: 'object', required: ['atomic'], properties: {
   atomic: { type: 'boolean' }, subtasks: { type: 'array', items: TASK } } }
@@ -758,6 +765,23 @@ async function checkSpDrift() {
   return { pinned: SP_VERSION, installed, drift }
 }
 
+// Self-configuring verify: discover HOW to test + how the build cache works by reading the repo —
+// what SP's in-session agent does implicitly. Ecosystem knowledge lives HERE (an LLM), not the engine.
+async function scout() {
+  return await agent(
+    `Discover how to VERIFY this project and how its BUILD CACHE works, by reading the repo.` + REPO_NOTE + `\n` +
+    `Inspect: build manifests (package.json scripts, Cargo.toml, pyproject.toml, go.mod), Makefile/Justfile, ` +
+    `CI config (.github/workflows/*.yml), README. Base every field on a file you actually read — do NOT guess.\n\n` +
+    `Return:\n` +
+    `- verifyCmd: one shell command that runs this project's tests/checks and exits 0 iff they pass (prefer the FAST form a developer runs while iterating). null if you genuinely cannot determine one.\n` +
+    `- fullVerifyCmd: the COMPREHENSIVE suite (full workspace + lint/typecheck), run once before merge. May equal verifyCmd.\n` +
+    `- cacheType: 'wrapper' if a compiler-cache WRAPPER is configured (e.g. .cargo/config.toml rustc-wrapper=sccache, CC=ccache); 'remote' if that cache is cloud/remote (sccache with SCCACHE_BUCKET/REDIS, env-driven); 'local-dir' if the only cache is a build-output dir a FRESH git worktree would NOT inherit (target/, build/) and rebuilding it is expensive; else 'none'.\n` +
+    `- cacheWrapper: the wrapper binary (e.g. "sccache"), or null.\n` +
+    `- cacheDirs: repo-relative local dirs to make reachable in a fresh worktree (for 'local-dir'); [] otherwise.\n` +
+    `- allowlistPaths: filesystem paths the cache wrapper must WRITE that a restrictive sandbox might block (e.g. sccache's cache dir); [] if none.`,
+    { label: 'scout', phase: 'Preflight', model: 'opus', schema: SCOUT })
+}
+
 async function preflight() {
   if (!isExternal()) return { ok: true, detail: 'claude implementer — no external CLI to cross-check' }
 
@@ -818,6 +842,9 @@ if (_args.planOnly) return { planOnly: true, plannedTasks: planned, tasks: queue
 const sp = await checkSpDrift()   // anti-drift: warn if installed superpowers != the pinned-source version
 const pf = await preflight()
 if (!pf.ok) { log(`ABORT: preflight repo mismatch — ${pf.detail}`); return { aborted: 'preflight', detail: pf.detail, total: tasks.length } }
+// Scout: when running in goal mode without a caller-supplied verifyCmd, discover the verify command
+// and build cache shape by reading the repo. Runs once, in Preflight, before any task is built.
+const scoutResult = (goal && !verifyCmd) ? await scout() : null
 const accCannotVerify = []   // [{task, items}] — ⚠️ items from passing tasks, resolved at integration (H3)
 const resume = await loadResume()
 const alreadyDone = resume.done
