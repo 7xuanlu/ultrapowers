@@ -815,7 +815,12 @@ async function cacheReach(info) {
         (info.allowlist && info.allowlist.length ? ` REQUIRES sandbox write-allowlist for: ${info.allowlist.join(', ')} (one-time supervised grant) — else builds run COLD.` : ''))
     return
   }
-  if (info.type === 'local-dir' && info.dirs && info.dirs.length && repoDir) {
+  if (info.type === 'local-dir') {
+    if (!(info.dirs && info.dirs.length && repoDir)) {
+      // Not actionable — log for parity with the other branches (none of which run silently).
+      log(`cache: type=local-dir but ${!repoDir ? 'no repoDir — assuming in-place checkout (already warm)' : 'scout returned no cacheDirs'}; nothing to symlink`)
+      return
+    }
     await agent(
       `Warm this worktree's build cache by sharing it from the repo's main checkout.` + REPO_NOTE + `\n` +
       `STEP 1 — find the common checkout: \`${GIT} rev-parse --git-common-dir\` (its parent is the main worktree root). If repoDir IS the common checkout (not a linked worktree), STOP and return {ok:true, detail:"main checkout — cache already warm"}.\n` +
