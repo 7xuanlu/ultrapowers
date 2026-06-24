@@ -54,7 +54,7 @@ Note: `core.hooksPath` makes git use `.githooks/` for all hooks, superseding `.g
 | path | what |
 |------|------|
 | `workflow/ultrapowers-development.js` | the deterministic Workflow coordinator (the engine) |
-| `commands/workflows-driven-development.md` | the user-only command (owns the human gates; dispatches the engine, never re-implement the loop) |
+| `skills/workflows-driven-development/SKILL.md` | the user-only skill (owns the human gates; dispatches the engine, never re-implement the loop) |
 | `reference/` | load-on-demand command docs |
 | `tests/`, `bench/` | self-tests and the benchmark harness |
 | `NOTICE`, `LICENSE-superpowers` | attribution for the verbatim-embedded Superpowers text |
