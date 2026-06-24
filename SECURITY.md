@@ -34,14 +34,17 @@ working tree, and you should understand them:
   principle leave the seeded break in the tree. Because it precedes all task work and the tree
   is committed per task, you will see any stray change in the branch diff you review before
   merging; still, run the harness on a repo under version control and review the branch.
-- **Cache-reach symlinks across the worktree boundary.** For a `local-dir` cache (e.g. a build
-  output dir with no compiler-cache wrapper), the harness **symlinks that directory from the
-  repo's main checkout into the disposable worktree** so a fresh worktree isn't cold. This is
-  reversible (a symlink, never an overwrite of a real dir) and **refuses if the main checkout
-  appears to be mid-build** (to avoid poisoning a shared cache). For `wrapper`/`remote` caches
-  the wrapper is kept, never blanked; if its cache dir isn't in the sandbox write-allowlist the
-  harness logs a cold-build warning rather than disabling the wrapper. The allowlist grant is a
-  **separate, supervised, one-time step** — the unattended run never edits `settings.json`.
+- **Cache-reach modifies the disposable worktree to warm it.** For a `local-dir` cache (e.g. a
+  build output dir with no compiler-cache wrapper), the harness **symlinks that directory from the
+  repo's main checkout into the worktree** so a fresh worktree isn't cold — reversible (a symlink,
+  never an overwrite of a real dir) and **refused if the main checkout appears to be mid-build**
+  (to avoid poisoning a shared cache). For `wrapper`/`remote` caches the wrapper is kept, never
+  blanked; and because a wrapper config can be gitignored/local-only (absent from a fresh worktree),
+  the harness **replicates that wrapper config into the worktree** — minimally, reversibly, scoped
+  to the worktree, and never overwriting a tracked config. If the cache dir isn't in the sandbox
+  write-allowlist the harness logs a cold-build warning rather than disabling the wrapper. The
+  allowlist grant is a **separate, supervised, one-time step** — the unattended run never edits
+  `settings.json`.
 
 ## Reporting
 Report privately, **do not open a public issue** for a sensitive vulnerability.
