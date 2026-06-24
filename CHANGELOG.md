@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.4.0...ultrapowers-v0.5.0) (2026-06-24)
+
+
+### Features
+
+* short WDD picker name, hide engine from slash list, dynamic-framed descriptions ([6cfda74](https://github.com/7xuanlu/ultrapowers/commit/6cfda74558a8d2cd9da0032e18aac060f72e82b0))
+
 ## [0.4.0](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.3.1...ultrapowers-v0.4.0) (2026-06-24)
 
 

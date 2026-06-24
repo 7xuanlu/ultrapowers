@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "ultrapowers",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "source": "./",
       "description": "A dynamic build workflow for Claude Code: hand it a goal and it plans the work into tasks, builds each one test-first, reviews every step, and (with --thorough) loops a critic that adds tasks until nothing's left to fix, then hands back a branch ready for your review. Built on and complements superpowers by Jesse Vincent (@obra); does not replace it.",
       "license": "MIT",
