@@ -14,7 +14,7 @@ across many disposable subagents, with human gates only at plan-approval and cri
 - **External implementer CLIs are opt-in.** The product default `implementer:"claude"` needs
   no external CLI. `codex`/`gemini` shell out to those tools only if you select them.
 - **The SessionStart hook** only *removes* a legacy symlink in `~/.claude/workflows/` that older
-  versions created for by-name dispatch — the engine is now dispatched by `scriptPath`, so it is
+  versions created for by-name dispatch; the engine is now dispatched by `scriptPath`, so it is
   never registered as a named workflow (keeping it out of the slash list and un-invocable by the
   model, which would bypass the human gates). The hook removes only its own symlink slot and never
   touches a real file you may have placed there.

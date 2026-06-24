@@ -16,11 +16,11 @@ ln -snf "/some/old/engine.js" "$LINK"
 bash "$HOOK" >/dev/null
 [ -e "$LINK" ] && fail "legacy symlink not removed"
 
-# (b) idempotent — runs cleanly when the link is already absent
+# (b) idempotent: runs cleanly when the link is already absent
 bash "$HOOK" >/dev/null
 [ -e "$LINK" ] && fail "link reappeared"
 
-# (c) no workflows dir at all — must not error
+# (c) no workflows dir at all: must not error
 rm -rf "$TMP/.claude"
 bash "$HOOK" >/dev/null || fail "errored when ~/.claude/workflows absent"
 
