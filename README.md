@@ -47,7 +47,7 @@ Then:
 /workflows-driven-development "your goal here"
 ```
 The command dispatches the bundled engine directly by `scriptPath`, so it works immediately on a
-fresh install — no symlink or by-name registration, and the engine stays out of your slash list.
+fresh install, with no symlink or by-name registration, and the engine stays out of your slash list.
 
 **Requirements:** Claude Code with the Workflow tool, and Node (the engine is checked on Node 20;
 newer is fine). The default implementer (`claude`) needs no external CLI. The optional `codex` and
