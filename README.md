@@ -1,6 +1,6 @@
 # Ultrapowers
 
-Ultrapowers takes a goal or a task list and builds it for you, unattended: it plans, builds each task
+Ultrapowers is a dynamic build workflow for Claude Code. It takes a goal or a task list and builds it for you, unattended: it plans, builds each task
 test-first, has a stronger model review every task, loops a critic until the goal is met, and hands
 back one reviewed branch. You step in at two points only, approving the plan and reviewing the result.
 
