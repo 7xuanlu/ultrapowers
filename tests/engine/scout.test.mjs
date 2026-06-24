@@ -28,6 +28,7 @@ test('scout fullVerifyCmd drives the integration final gate (distinct from per-t
     if (l === 'sp-version-check') return { installed: ['6.0.0'] }
     if (l === 'scout') return { verifyCmd: 'cargo test -p foo', fullVerifyCmd: 'cargo test --all', cacheType: 'none', cacheWrapper: null, cacheDirs: [], allowlistPaths: [] }
     if (l === 'scout-witness') return { applicable: true, redWitnessed: true, detail: 'broke prod, suite failed (good)' }
+    if (l === 'scout-witness-clean') return { clean: true, detail: '' }   // F2: tree restored clean after the seed-break
     if (l === 'plan') return { tasks: [{ id: 't1', spec: 'x' }] }
     if (l.startsWith('capture-head:')) return { sha: 'a'.repeat(40) }
     if (l.startsWith('claude:')) return { status: 'done', files: [], summary: 'ok' }

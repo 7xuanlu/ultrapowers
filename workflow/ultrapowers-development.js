@@ -785,9 +785,10 @@ async function scout() {
 
 // Red-witness the DISCOVERED command: seed a guaranteed break, confirm the command goes RED, restore.
 // A command that stays green on broken code is a vacuous gate — reject it (would silently defeat the
-// "don't trust the self-report" identity). Fail-OPEN: only a definite redWitnessed:false rejects.
+// "don't trust the self-report" identity). Fail-CLOSED: only a definite redWitnessed:true is trusted —
+// an unprovable command must NEVER be promoted to the deterministic gate (boule council F1).
 async function witnessCommand(cmd) {
-  if (!doCommit) return true   // no per-commit restore guarantee → can't safely seed/revert; trust (insurance, not primary)
+  if (!doCommit) return false  // no commit baseline → can't safely seed/revert → can't PROVE the gate → refuse
   const file = `/tmp/up-scout-verify.sh`
   const sec = Math.ceil(VERIFY_TIMEOUT_MS / 1000)
   const w = await agent(
@@ -801,6 +802,19 @@ async function witnessCommand(cmd) {
     `redWitnessed=false ONLY if the command PASSED (RC=0) despite the real break = vacuous gate.`,
     { label: 'scout-witness', phase: 'Preflight', model: 'haiku', schema: REDWITNESS })
   return !(w && w.redWitnessed === false)
+}
+
+const TREE_CLEAN = { type: 'object', required: ['clean'], properties: { clean: { type: 'boolean' }, detail: { type: 'string' } } }
+// Structurally confirm the red-witness seed-break was restored — an INDEPENDENT git check, not the
+// witness agent's self-report (boule council F2). A leftover seeded break would become the per-commit
+// baseline every task then builds on. The engine decides clean/dirty; only tracked modifications count
+// (a fresh seeded break edits a tracked source file; untracked/ignored cache dirs don't matter here).
+async function treeClean() {
+  const r = await agent(
+    `Run \`${GIT} status --porcelain --untracked-files=no\` and report whether the working tree has any MODIFIED tracked files.` + REPO_NOTE + `\n` +
+    `Return {clean:<true iff that output is EMPTY — no tracked modifications>, detail:"<the porcelain output, or empty>"}.`,
+    { label: 'scout-witness-clean', phase: 'Preflight', model: 'haiku', schema: TREE_CLEAN })
+  return !!(r && r.clean === true)
 }
 
 const CACHE_REACH = { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, detail: { type: 'string' } } }
@@ -896,17 +910,27 @@ if (!pf.ok) { log(`ABORT: preflight repo mismatch — ${pf.detail}`); return { a
 // Self-configure the per-task gate when the caller supplied none (SP-like discovery).
 if (goal && !verifyCmd) {
   const sc = await scout()
-  if (sc && sc.verifyCmd && await witnessCommand(sc.verifyCmd)) {
+  // Promote a self-discovered command to the deterministic gate ONLY if it red-witnesses. That needs
+  // a commit baseline (doCommit) to seed/revert the break, so an unprovable command is NEVER adopted —
+  // it degrades to LLM-review-only, logged honestly (boule council F1: don't trust an un-witnessed gate).
+  if (sc && sc.verifyCmd && doCommit && await witnessCommand(sc.verifyCmd)) {
+    // F2: independently confirm the seed-break was restored before building on this baseline.
+    if (!(await treeClean())) {
+      log('ABORT: working tree not clean after the scout red-witness — a seeded break may not have been reverted; refusing to build tasks on a corrupted baseline')
+      return { aborted: 'witness-restore', detail: 'working tree dirty after scout red-witness seed/restore', total: tasks.length }
+    }
     verifyCmd = sc.verifyCmd
     if (!FULL_VERIFY_CMD) FULL_VERIFY_CMD = sc.fullVerifyCmd || sc.verifyCmd
-    cacheInfo = { type: sc.cacheType, wrapper: sc.cacheWrapper || null, dirs: sc.cacheDirs || [], allowlist: sc.allowlistPaths || [] }
     log(`scout: verifyCmd="${verifyCmd}" (red-witnessed); fullVerifyCmd="${FULL_VERIFY_CMD}"; cacheType=${sc.cacheType}`)
-    await cacheReach(cacheInfo)
+  } else if (sc && sc.verifyCmd && !doCommit) {
+    log(`scout: discovered "${sc.verifyCmd}" but cannot red-witness without commit:true — NOT promoting an unproven command to the deterministic gate; gate skipped, LLM review only`)
   } else if (sc && sc.verifyCmd) {
     log(`scout: discovered "${sc.verifyCmd}" but it stayed GREEN on a seeded break — REJECTED (vacuous gate); deterministic gate skipped, LLM review only`)
   } else {
     log(`scout: no verify command discovered — deterministic gate skipped, LLM review only`)
   }
+  // Cache warming is INDEPENDENT of gate adoption — warm whenever scout returned a cache shape.
+  if (sc) { cacheInfo = { type: sc.cacheType, wrapper: sc.cacheWrapper || null, dirs: sc.cacheDirs || [], allowlist: sc.allowlistPaths || [] }; await cacheReach(cacheInfo) }
 }
 const accCannotVerify = []   // [{task, items}] — ⚠️ items from passing tasks, resolved at integration (H3)
 const resume = await loadResume()
