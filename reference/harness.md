@@ -1,7 +1,9 @@
 # The harness (Workflow coordinator)
 
 The engine is a deterministic JS **Workflow** (`workflow/ultrapowers-development.js`,
-`meta.name: ultrapowers-development`). Per ADR-0001, hosting the SDD loop on the Workflow
+`meta.name: ultrapowers-development`), dispatched by `scriptPath` from the WDD skill, and is
+**not** registered in `~/.claude/workflows/`, so it stays out of the slash list and the model
+cannot dispatch it directly (which would bypass the human gates). Per ADR-0001, hosting the SDD loop on the Workflow
 primitive keeps intermediate `agent()` results in script variables (never re-entering an
 LLM context) → the coordinator session stays flat over long runs. Trade-off: a Workflow
 cannot pause mid-run for input, so human gates live in the command, before/after dispatch.

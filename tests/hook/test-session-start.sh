@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test the SessionStart symlink hook in an isolated HOME. No network, no real ~/.claude touched.
+# Test the SessionStart legacy-cleanup hook in an isolated HOME. No network, no real ~/.claude touched.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TMP="$(mktemp -d)"
@@ -7,29 +7,28 @@ trap 'rm -rf "$TMP"' EXIT
 export HOME="$TMP"
 HOOK="$ROOT/hooks/session-start"
 LINK="$TMP/.claude/workflows/ultrapowers-development.js"
-ENGINE="$ROOT/workflow/ultrapowers-development.js"
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
-# (a) creates the symlink
+# (a) removes the legacy symlink (whatever it points at)
+mkdir -p "$(dirname "$LINK")"
+ln -snf "/some/old/engine.js" "$LINK"
 bash "$HOOK" >/dev/null
-[ -L "$LINK" ] || fail "symlink not created"
-[ "$(readlink "$LINK")" = "$ENGINE" ] || fail "symlink points wrong: $(readlink "$LINK")"
+[ -e "$LINK" ] && fail "legacy symlink not removed"
 
-# (b) idempotent — second run succeeds, link unchanged
+# (b) idempotent: runs cleanly when the link is already absent
 bash "$HOOK" >/dev/null
-[ "$(readlink "$LINK")" = "$ENGINE" ] || fail "idempotent run changed link"
+[ -e "$LINK" ] && fail "link reappeared"
 
-# (c) does NOT clobber a real (non-symlink) file
-rm -f "$LINK"; printf 'real' > "$LINK"
+# (c) no workflows dir at all: must not error
+rm -rf "$TMP/.claude"
+bash "$HOOK" >/dev/null || fail "errored when ~/.claude/workflows absent"
+
+# (d) does NOT remove a real (non-symlink) file a user placed there
+mkdir -p "$(dirname "$LINK")"; printf 'real' > "$LINK"
 bash "$HOOK" >/dev/null
-[ -L "$LINK" ] && fail "clobbered a real file with a symlink"
+[ -f "$LINK" ] || fail "removed a real file"
 [ "$(cat "$LINK")" = "real" ] || fail "real file content altered"
-
-# (d) repoints a stale/dangling symlink
-ln -snf "/nonexistent/old.js" "$LINK"
-bash "$HOOK" >/dev/null
-[ "$(readlink "$LINK")" = "$ENGINE" ] || fail "stale symlink not repointed"
 
 # emits valid SessionStart JSON
 out="$(bash "$HOOK")"

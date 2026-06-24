@@ -1,5 +1,7 @@
 ---
-description: "ultrapowers: hand it a goal and walk away. It plans, builds test-first, reviews every step, and hands back a branch you can trust. Built on superpowers."
+name: workflows-driven-development
+description: "Dynamic build workflow: plans a goal into tasks, builds each test-first, and reviews every step."
+argument-hint: "<goal> | --tasks <file> | help"
 disable-model-invocation: true
 ---
 
@@ -30,7 +32,7 @@ If the target repo is on `main`/`master`, create a feature worktree/branch first
 ## GATE 1, plan approval (goal mode)
 For a `<goal>`: dispatch planning only, then present the task list to the human.
 ```
-Workflow({ name:'ultrapowers-development', args:{ goal:<goal>, planOnly:true } })
+Workflow({ scriptPath:'${CLAUDE_PLUGIN_ROOT}/workflow/ultrapowers-development.js', args:{ goal:<goal>, planOnly:true } })
 ```
 Show the proposed tasks and ask: **Approve this plan / edit / abort?** Do not build until approved.
 > A Workflow cannot pause mid-run (ADR-0001), so approval happens *before* the build dispatch.
@@ -45,7 +47,7 @@ in goal mode only)." Then skip to dispatch.
 Default args (product defaults, `implementer:"claude"` so a clean install needs no external CLI):
 **Source `verifyCmd`** from the project's real test command (read its `package.json` scripts and any `CLAUDE.md`). Without it the deterministic gate is skipped and re-witness RED goes inert, if the project genuinely has no test command, say so at GATE 1 rather than silently running degraded.
 ```
-Workflow({ name:'ultrapowers-development', args:{
+Workflow({ scriptPath:'${CLAUDE_PLUGIN_ROOT}/workflow/ultrapowers-development.js', args:{
   // one of:
   goal:  <approved goal>,            // goal mode
   tasks: <validated [{id,spec}]>,    // --tasks mode
@@ -59,9 +61,10 @@ Workflow({ name:'ultrapowers-development', args:{
   maxRounds: 3, maxTasks: 50
 } })
 ```
-> **Dispatch fallback:** if by-name resolution fails (the engine symlink may not be live in a
-> freshly-installed session), dispatch the same args with
-> `scriptPath: '${CLAUDE_PLUGIN_ROOT}/workflow/ultrapowers-development.js'` instead of `name`.
+> **Why `scriptPath`, not `name`:** the engine is intentionally NOT registered in
+> `~/.claude/workflows/`, so it stays out of the slash list and the model can't dispatch it
+> directly (`Workflow({name})`), which would bypass the two human gates. `scriptPath` resolves
+> the bundled engine straight from the plugin and needs no registration.
 
 ## GATE 2, critical review (on return)
 Surface the final JSON + the per-model token/cost report. If the result sets

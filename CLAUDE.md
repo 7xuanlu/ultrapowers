@@ -15,9 +15,12 @@ push to `main` directly. The skills own TDD, worktree, and model-routing rules, 
   Workflow tool with top-level `await`/`return` and a single `export`, that's why `npm run check`
   compiles it as an async IIFE instead of `node --check`. Don't add a second `export` shape without
   updating `tests/check-engine.sh`.
-- `commands/workflows-driven-development.md` is **user-only** (`disable-model-invocation: true`) and
-  spends real tokens. It dispatches the engine by name with a `scriptPath` fallback; do not
-  re-implement the loop inside the command.
+- `skills/workflows-driven-development/SKILL.md` is **user-only** (`disable-model-invocation: true`) and
+  spends real tokens. It dispatches the engine by `scriptPath` (the engine is **not** registered by
+  name in `~/.claude/workflows/`, so it stays out of the slash list and the model can't dispatch it
+  directly, bypassing the gates); do not re-implement the loop inside the skill. (Ships as a `skills/` skill, not a `commands/` file, so the
+  slash picker shows the short name `workflows-driven-development (ultrapowers)` instead of the full
+  `/ultrapowers:workflows-driven-development` path.)
 
 ## After any edit
 
