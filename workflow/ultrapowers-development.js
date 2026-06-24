@@ -916,7 +916,7 @@ if (goal && !verifyCmd) {
   if (sc && sc.verifyCmd && doCommit && await witnessCommand(sc.verifyCmd)) {
     // F2: independently confirm the seed-break was restored before building on this baseline.
     if (!(await treeClean())) {
-      log('ABORT: working tree not clean after the scout red-witness — a seeded break may not have been reverted; refusing to build tasks on a corrupted baseline')
+      log('ABORT: working tree not clean after the scout red-witness — either the seeded break was not reverted, or the tree was already dirty at start; refusing to build/commit tasks on an unclean baseline')
       return { aborted: 'witness-restore', detail: 'working tree dirty after scout red-witness seed/restore', total: tasks.length }
     }
     verifyCmd = sc.verifyCmd
