@@ -26,6 +26,13 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
+        # release-please-action@v4 (rp 17.3.0) can throw a blank `release-please failed:` in
+        # its PR-creation phase AFTER it has already cut the release and set its outputs
+        # (observed: run 28116717892 for v0.4.1 — release tagged, then a blank-message throw).
+        # The release work itself succeeds, so don't let that spurious non-zero exit fail the
+        # job or suppress the notify below. The reliable signal is the release_created output,
+        # which is set before the throw; gate on that.
+        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
@@ -35,8 +42,13 @@ jobs:
       # The marketplace's sync-marketplace workflow re-derives every plugin's pin itself,
       # so this only needs to fire the dispatch (the client_payload is informational).
       # Cross-repo dispatch needs a PAT (MARKETPLACE_SYNC_TOKEN); GITHUB_TOKEN can't reach it.
+      #
+      # `!cancelled()` overrides the success() GitHub auto-applies to any `if:` lacking a status
+      # function: without it a failed release step would skip this even though the release (and
+      # release_created) were already set. release_created == 'true' keeps it firing only on a
+      # real release. The nightly sync-marketplace cron is the backstop if this ever misses.
       - name: Notify marketplace
-        if: ${{ steps.release.outputs.release_created }}
+        if: ${{ !cancelled() && steps.release.outputs.release_created == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.MARKETPLACE_SYNC_TOKEN }}
         run: |
