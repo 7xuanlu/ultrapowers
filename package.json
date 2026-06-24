@@ -1,6 +1,6 @@
 {
   "name": "ultrapowers",
-  "version": "0.5.0",
+  "version": "0.4.1",
   "description": "Unattended SDD/TDD build harness for Claude Code (Workflow-coordinator). Complements superpowers.",
   "type": "module",
   "license": "MIT",

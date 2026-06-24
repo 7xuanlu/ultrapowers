@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.0](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.4.0...ultrapowers-v0.5.0) (2026-06-24)
+## [0.4.1](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.4.0...ultrapowers-v0.4.1) (2026-06-24)
 
 
 ### Features
