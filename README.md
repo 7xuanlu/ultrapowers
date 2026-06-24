@@ -41,14 +41,13 @@ Or install this repo directly (it is its own single-plugin marketplace, also nam
 /plugin marketplace add 7xuanlu/ultrapowers
 /plugin install ultrapowers@7xuanlu
 ```
-Start a new session so the SessionStart hook runs (it symlinks the engine into
-`~/.claude/workflows/ultrapowers-development.js`). Then:
+Then:
 ```
 /workflows-driven-development help
 /workflows-driven-development "your goal here"
 ```
-If the command does not resolve by name in a freshly installed session, it falls back to
-dispatching the engine by `scriptPath` automatically.
+The command dispatches the bundled engine directly by `scriptPath`, so it works immediately on a
+fresh install — no symlink or by-name registration, and the engine stays out of your slash list.
 
 **Requirements:** Claude Code with the Workflow tool, and Node (the engine is checked on Node 20;
 newer is fine). The default implementer (`claude`) needs no external CLI. The optional `codex` and

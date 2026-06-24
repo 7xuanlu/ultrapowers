@@ -1,22 +1,14 @@
 #!/usr/bin/env bash
-# SessionStart hook (ultrapowers): idempotently symlink the bundled engine into
-# ~/.claude/workflows/ so Workflow({name:'ultrapowers-development'}) resolves by name.
-# The bundled workflow/ultrapowers-development.js is the single source of truth; the
-# symlink always points at the plugin's current engine (no "two copies in sync" burden).
+# SessionStart hook (ultrapowers): remove the legacy ~/.claude/workflows/ symlink that older
+# versions created for by-name Workflow dispatch. The engine is now dispatched by scriptPath
+# (so it stays out of the slash list and can't be model-invoked, which would bypass the gates).
+# Idempotent: removes only our own symlink slot, never a real file a user may have placed there.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ENGINE="${PLUGIN_ROOT}/workflow/ultrapowers-development.js"
-DEST_DIR="${HOME}/.claude/workflows"
-LINK="${DEST_DIR}/ultrapowers-development.js"
+LINK="${HOME}/.claude/workflows/ultrapowers-development.js"
 
-mkdir -p "${DEST_DIR}"
-
-# Only manage our own symlink slot: (re)point it at the bundled engine when the slot is a
-# symlink or empty. Never clobber a real file a user may have placed there.
-if [ -L "${LINK}" ] || [ ! -e "${LINK}" ]; then
-  ln -snf "${ENGINE}" "${LINK}"
+if [ -L "${LINK}" ]; then
+  rm -f "${LINK}"
 fi
 
 printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":""}}\n'
