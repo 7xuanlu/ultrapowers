@@ -848,7 +848,7 @@ async function cacheReach(info) {
       `STEP 3 — otherwise replicate the main checkout's wrapper setup MINIMALLY and reversibly here (copy its local cache-wrapper config in, or write the minimal equivalent) so builds use "${info.wrapper}". Do NOT overwrite a TRACKED config; only add what is missing.\n` +
       `Return {ok:true, detail:"<what you did>"}.${allowNote ? ' (The cache dir must also be sandbox-writable.)' : ''}`,
       { label: 'cache-reach', phase: 'Preflight', model: 'haiku', schema: CACHE_REACH })
-    if (allowNote) log(`cache: type=${info.type} wrapper=${info.wrapper} — propagated to worktree.${allowNote}`)
+    log(`cache: type=${info.type} wrapper=${info.wrapper} — propagated to worktree.${allowNote}`)
     return
   }
   if (info.type === 'local-dir') {
