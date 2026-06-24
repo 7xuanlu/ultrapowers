@@ -63,6 +63,13 @@ const RESUME = { type: 'object', required: ['done'], properties: {
 const SPVER = { type: 'object', required: ['installed'], properties: { installed: { type: 'array', items: { type: 'string' } } } }
 const TASK = { type: 'object', required: ['id', 'spec'], properties: { id: { type: 'string' }, spec: { type: 'string' } } }
 const PLAN = { type: 'object', required: ['tasks'], properties: { tasks: { type: 'array', items: TASK } } }
+const SCOUT = { type: 'object', required: ['cacheType'], properties: {
+  verifyCmd:      { type: ['string', 'null'] },
+  fullVerifyCmd:  { type: ['string', 'null'] },
+  cacheType:      { enum: ['wrapper', 'local-dir', 'remote', 'none'] },
+  cacheWrapper:   { type: ['string', 'null'] },
+  cacheDirs:      { type: 'array', items: { type: 'string' } },
+  allowlistPaths: { type: 'array', items: { type: 'string' } } } }
 // N2: graduated-BLOCKED step 3 — split a too-large blocked task into smaller pieces before human escalation.
 const DECOMP = { type: 'object', required: ['atomic'], properties: {
   atomic: { type: 'boolean' }, subtasks: { type: 'array', items: TASK } } }
@@ -88,7 +95,7 @@ const OUTAGE_STREAK = 3  // consecutive fallbacks => degraded (likely correlated
 
 const tasks     = _args.tasks     || []
 const goal      = _args.goal      || null
-const verifyCmd = _args.verifyCmd  || null
+let verifyCmd = _args.verifyCmd  || null
 const logFile   = _args.logFile    || null
 const doCommit  = !!_args.commit
 const MAX_ROUNDS = _args.maxRounds || 3
@@ -131,7 +138,8 @@ const VERIFY_TIMEOUT_MS = _args.verifyTimeoutMs || 180_000
 // #3: optional FINAL full-suite gate. Per-task verify (verifyCmd) should be FAST/scoped so the fix-loop isn't
 // paying the whole suite every round; pass fullVerifyCmd to run the comprehensive suite ONCE at integration.
 // Null = the integration gate reuses verifyCmd.
-const FULL_VERIFY_CMD = _args.fullVerifyCmd || null
+let FULL_VERIFY_CMD = _args.fullVerifyCmd || null
+let cacheInfo = null   // {type, wrapper, dirs, allowlist} from scout; consumed by cacheReach (Task 4)
 // P1-strip re-witness RED (empirically motivated, near-zero cost): after the gate is GREEN, revert ONLY this
 // task's PRODUCTION files to their pre-task state (keeping the new tests) and re-run the suite. A correct test
 // MUST go red without its implementation; if the suite still PASSES, the test does not exercise the new code
@@ -301,6 +309,21 @@ It is always OK to stop and say "this is too hard for me." Bad work is worse tha
 - You feel uncertain whether your approach is correct.
 - You've been reading file after file trying to understand the system without progress.`
 
+// ---- structural timeout watchdog (Component C) ----
+// One process-GROUP-killing watchdog, reused by EVERY long/hang-prone command (codex exec AND the
+// deterministic gate: verify, redWitness, integration). Forks the target into a NEW session (setsid;
+// timeout/gtimeout/setsid as a CLI are ABSENT on stock macOS), feeds it stdinFile as STDIN (default
+// /dev/null), and at the deadline SIGKILLs the target's WHOLE process group and exits 124. Crucially it
+// returns control to the caller's shell GRACEFULLY — it kills the CHILD group, not the caller — so a
+// trailing `; echo "__RC__=$?"` still runs and the 124 marker the fix-loop reads SURVIVES the kill. A
+// raw Bash-tool timeout instead kills the agent's shell and loses that marker. `exec @ARGV` accepts a
+// multi-word argv (e.g. `env -u … codex exec … -`, or `sh` reading a verify script from stdinFile).
+// Mechanism is guarded by tests/watchdog.sh (extracts WATCHDOG_PERL and asserts kill + 124 + marker).
+const WATCHDOG_PERL = `perl -e 'use POSIX qw(setsid); my $t=shift; my $in=shift; my $p=fork; die "fork" unless defined $p; if($p==0){setsid(); open(STDIN,"<",$in) or die "stdin"; exec @ARGV or die "exec"} $SIG{ALRM}=sub{kill("KILL",-$p); waitpid($p,0); exit 124}; alarm $t; waitpid($p,0); my $c=$?>>8; my $s=$?&127; exit($s?128+$s:$c)'`
+// Wrap a command under the watchdog. argv: the command (multi-word ok). timeoutSec: hard cap.
+// stdinFile: fed to the command as STDIN — used to pass a brief (codex) or a verify script (`sh`).
+const wrapWatchdog = (argv, timeoutSec, stdinFile = '/dev/null') => `${WATCHDOG_PERL} ${timeoutSec} ${stdinFile} ${argv}`
+
 // ---- implementer ----
 // Pluggable: cheap external CLI with capable Claude fallback, or Claude direct with model routing.
 //  • codex  -> `codex exec` (non-interactive batch) run via Bash — fresh ephemeral process per task, NO
@@ -352,7 +375,7 @@ async function implement(task, issues, prior) {
         // including secrets the trusted MCP server needs but an external CLI must not read (e.g. the GitHub
         // PAT injected by settings.json env). `env -u` scrubs them from codex's child shell; the MCP server
         // (in-process) still gets them. `-s workspace-write` only confines writes, not env reads.
-        const cmd = `perl -e 'use POSIX qw(setsid); my $t=shift; my $in=shift; my $p=fork; die "fork" unless defined $p; if($p==0){setsid(); open(STDIN,"<",$in) or die "stdin"; exec @ARGV or die "exec"} $SIG{ALRM}=sub{kill("KILL",-$p); waitpid($p,0); exit 124}; alarm $t; waitpid($p,0); my $c=$?>>8; my $s=$?&127; exit($s?128+$s:$c)' ${Math.ceil(CODEX_TIMEOUT_MS / 1000)} ${briefFile} env -u GITHUB_PERSONAL_ACCESS_TOKEN codex exec --cd ${repoDir || '.'} --ephemeral --skip-git-repo-check -s workspace-write${modelFlag}${reasonFlag} -`
+        const cmd = wrapWatchdog(`env -u GITHUB_PERSONAL_ACCESS_TOKEN codex exec --cd ${repoDir || '.'} --ephemeral --skip-git-repo-check -s workspace-write${modelFlag}${reasonFlag} -`, Math.ceil(CODEX_TIMEOUT_MS / 1000), briefFile)
         return (
           `Implement this with the Codex CLI in NON-INTERACTIVE batch mode (codex exec). Do NOT use any MCP tool.\n\n` +
           `STEP 1 — write the BRIEF below VERBATIM (no edits, no summarizing) to ${briefFile} using the Write tool.\n` +
@@ -428,15 +451,22 @@ async function implement(task, issues, prior) {
 // Deterministic project gate — runs the REAL command so approval never rests on a self-report.
 async function verify(task) {
   if (!verifyCmd) return { passed: true, tail: '(no args.verifyCmd — deterministic gate skipped; LLM review only)' }
-  // N8: the agent does NOT judge pass/fail. It runs the command, captures the real exit code via a
-  // marker, and copies the integer. The HARNESS decides passed = (code === 0) — deterministic.
-  // #1 TIMEOUT: a hanging test (infinite loop in the code) must not stall the run. The agent sets the Bash
-  // tool timeout; if the command is killed for running too long, that is exit 124 = not passed = re-implement.
+  // N8: the agent does NOT judge pass/fail — it runs the command, captures the real exit code via the
+  // __RC__ marker, and copies the integer. The HARNESS decides passed = (code === 0) — deterministic.
+  // #1 TIMEOUT (Component C): the gate is wrapped in the structural watchdog, so a hanging test (infinite
+  // loop in the code) — or a legitimately long suite that blows the cap — is SIGKILLed at VERIFY_TIMEOUT_MS
+  // and surfaces as exit 124 = not passed, REGARDLESS of whether the agent honors the Bash-tool timeout (it
+  // often did not — uncapped gate agents ran 55-117 min). The watchdog returns control gracefully so the
+  // trailing `; echo "__RC__=$?"` still prints __RC__=124. verifyCmd is passed via a file (no quoting hazard).
+  const verifyFile = `/tmp/up-verify-${task.id}.sh`
+  const sec = Math.ceil(VERIFY_TIMEOUT_MS / 1000)
   const v = await agent(
-    `Run this project's verify command with Bash, then capture its exit code. SET the Bash tool \`timeout\` parameter to ${VERIFY_TIMEOUT_MS} (ms). Run EXACTLY this (do NOT edit any files):\n` +
-    `  ${verifyCmd}; echo "__RC__=$?"\n` +
-    `If the Bash call TIMES OUT (the command hung), return {code:124, tail:"verify TIMED OUT after ${VERIFY_TIMEOUT_MS}ms — likely an infinite loop / hang in the code"}.\n` +
-    `Otherwise find the line "__RC__=<n>" in the output and return {code:<that integer n, e.g. 0 or 1>, tail:"last ~20 lines of output"}. Do NOT interpret — just copy the integer.`,
+    `Run this project's verify command under a structural timeout, then report its exit code. Do NOT edit any project files.\n` +
+    `STEP 1 — write the VERIFY COMMAND below VERBATIM to ${verifyFile} using the Write tool.\n` +
+    `STEP 2 — run EXACTLY this with the Bash tool (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS + 30000} (ms) as a BACKSTOP; the command self-enforces a ${sec}s hard cap that SIGKILLs the command's whole process group and exits 124):\n` +
+    `  ${wrapWatchdog('sh', sec, verifyFile)}; echo "__RC__=$?"\n` +
+    `STEP 3 — find the line "__RC__=<n>" and return {code:<that integer n; 124 means the command TIMED OUT / hung>, tail:"last ~20 lines of output"}. Do NOT interpret — just copy the integer.\n\n` +
+    `--- VERIFY COMMAND (write to ${verifyFile} verbatim) ---\n${verifyCmd}`,
     { label: `verify:${task.id}`, phase: `task:${task.id}`, model: 'haiku', schema: VERIFY })
   if (!v) return { passed: false, tail: 'verify agent errored' }
   return { passed: v.code === 0, code: v.code, tail: v.tail || '' }
@@ -451,6 +481,8 @@ async function verify(task) {
 // still goes red -> we under-detect (never false-reject). Restore is the agent's mandatory STEP 4.
 async function redWitness(task, baseSha) {
   if (!RED_WITNESS || !verifyCmd || !doCommit || !baseSha) return { applicable: false }
+  const rwFile = `/tmp/up-redwitness-${task.id}.sh`
+  const sec = Math.ceil(VERIFY_TIMEOUT_MS / 1000)
   const w = await agent(
     `RE-WITNESS RED for task ${task.id}: confirm this task's NEW test fails without its implementation.` + REPO_NOTE + `\n\n` +
     `STEP 1 — list this task's changed files: \`${GIT} diff --name-only ${baseSha}..HEAD\`. Classify each as TEST ` +
@@ -458,8 +490,8 @@ async function redWitness(task, baseSha) {
     `If there are NO test files OR NO production files in the diff, STOP and return {applicable:false, detail:"<why>"}.\n` +
     `STEP 2 — revert ONLY the PRODUCTION files to their pre-task state, leaving the new tests in place: ` +
     `\`${GIT} checkout ${baseSha} -- <each prod path>\`. (If a prod file is NEW to this task, this removes it — correct.)\n` +
-    `STEP 3 — run the verify command and capture its exit code (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS}); run EXACTLY:\n` +
-    `  ${verifyCmd}; echo "__RC__=$?"\n` +
+    `STEP 3 — write the verify command \`${verifyCmd}\` VERBATIM to ${rwFile} (Write tool), then run it under the structural timeout and capture its exit code (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS + 30000} as a BACKSTOP; it self-enforces a ${sec}s cap → SIGKILL → exit 124); run EXACTLY:\n` +
+    `  ${wrapWatchdog('sh', sec, rwFile)}; echo "__RC__=$?"\n` +
     `STEP 4 — ALWAYS restore the tree before returning: \`${GIT} checkout HEAD -- <the same prod paths>\`, then confirm \`${GIT} status\` is clean. Do this even if STEP 3 errored.\n` +
     `Return {applicable:true, redWitnessed:<true iff __RC__ was NON-zero — the suite went RED without the impl, which is GOOD>, detail:"reverted <prod files>; suite RC=<n>"}. ` +
     `redWitnessed is false ONLY if the suite still PASSED (RC=0) without the implementation.`,
@@ -734,6 +766,107 @@ async function checkSpDrift() {
   return { pinned: SP_VERSION, installed, drift }
 }
 
+// Self-configuring verify: discover HOW to test + how the build cache works by reading the repo —
+// what SP's in-session agent does implicitly. Ecosystem knowledge lives HERE (an LLM), not the engine.
+async function scout() {
+  return await agent(
+    `Discover how to VERIFY this project and how its BUILD CACHE works, by reading the repo.` + REPO_NOTE + `\n` +
+    `Inspect: build manifests (package.json scripts, Cargo.toml, pyproject.toml, go.mod), Makefile/Justfile, ` +
+    `CI config (.github/workflows/*.yml), README. Base every field on a file you actually read — do NOT guess.\n` +
+    `IMPORTANT: a compiler-cache WRAPPER config can be GITIGNORED / local-only (e.g. a .cargo/config.toml ` +
+    `rustc-wrapper=sccache that is NOT committed) and therefore ABSENT from this fresh worktree — also inspect ` +
+    `the MAIN checkout (\`${GIT} rev-parse --git-common-dir\`, its parent dir) so you don't miss a wrapper the worktree didn't inherit.\n\n` +
+    `Return:\n` +
+    `- verifyCmd: one shell command that runs this project's tests/checks and exits 0 iff they pass (prefer the FAST form a developer runs while iterating). null if you genuinely cannot determine one.\n` +
+    `- fullVerifyCmd: the COMPREHENSIVE suite (full workspace + lint/typecheck), run once before merge. May equal verifyCmd.\n` +
+    `- cacheType: 'wrapper' if a compiler-cache WRAPPER is configured (e.g. .cargo/config.toml rustc-wrapper=sccache, CC=ccache); 'remote' if that cache is cloud/remote (sccache with SCCACHE_BUCKET/REDIS, env-driven); 'local-dir' if the only cache is a build-output dir a FRESH git worktree would NOT inherit (target/, build/) and rebuilding it is expensive; else 'none'.\n` +
+    `- cacheWrapper: the wrapper binary (e.g. "sccache"), or null.\n` +
+    `- cacheDirs: repo-relative local dirs to make reachable in a fresh worktree (for 'local-dir'); [] otherwise.\n` +
+    `- allowlistPaths: filesystem paths the cache wrapper must WRITE that a restrictive sandbox might block (e.g. sccache's cache dir); [] if none.`,
+    { label: 'scout', phase: 'Preflight', model: 'opus', schema: SCOUT })
+}
+
+// Red-witness the DISCOVERED command: seed a guaranteed break, confirm the command goes RED, restore.
+// A command that stays green on broken code is a vacuous gate — reject it (would silently defeat the
+// "don't trust the self-report" identity). Fail-CLOSED: only a definite redWitnessed:true is trusted —
+// an unprovable command must NEVER be promoted to the deterministic gate (boule council F1).
+async function witnessCommand(cmd) {
+  if (!doCommit) return false  // no commit baseline → can't safely seed/revert → can't PROVE the gate → refuse
+  const file = `/tmp/up-scout-verify.sh`
+  const sec = Math.ceil(VERIFY_TIMEOUT_MS / 1000)
+  const w = await agent(
+    `RED-WITNESS the discovered verify command — prove it exercises the code (not a vacuous pass).` + REPO_NOTE + `\n` +
+    `STEP 1 — pick ONE production source file (NOT a test, NOT config) and make a SMALL guaranteed-breaking change (flip a boolean, change a return value, or introduce a syntax error). Note the file.\n` +
+    `STEP 2 — write this command VERBATIM to ${file}: ${cmd}\n` +
+    `STEP 3 — run it under the structural timeout (SET Bash \`timeout\` to ${VERIFY_TIMEOUT_MS + 30000}); run EXACTLY:\n` +
+    `  ${wrapWatchdog('sh', sec, file)}; echo "__RC__=$?"\n` +
+    `STEP 4 — ALWAYS restore: \`${GIT} checkout -- <the file you changed>\`, confirm \`${GIT} status\` clean, even if STEP 3 errored.\n` +
+    `Return {applicable:true, redWitnessed:<true iff __RC__ was NON-zero — the command FAILED on the broken code, which is GOOD>, detail:"<what you broke; RC>"}. ` +
+    `redWitnessed=false ONLY if the command PASSED (RC=0) despite the real break = vacuous gate.`,
+    { label: 'scout-witness', phase: 'Preflight', model: 'haiku', schema: REDWITNESS })
+  return !(w && w.redWitnessed === false)
+}
+
+const TREE_CLEAN = { type: 'object', required: ['clean'], properties: { clean: { type: 'boolean' }, detail: { type: 'string' } } }
+// Structurally confirm the red-witness seed-break was restored — an INDEPENDENT git check, not the
+// witness agent's self-report (boule council F2). A leftover seeded break would become the per-commit
+// baseline every task then builds on. The engine decides clean/dirty; only tracked modifications count
+// (a fresh seeded break edits a tracked source file; untracked/ignored cache dirs don't matter here).
+async function treeClean() {
+  const r = await agent(
+    `Run \`${GIT} status --porcelain --untracked-files=no\` and report whether the working tree has any MODIFIED tracked files.` + REPO_NOTE + `\n` +
+    `Return {clean:<true iff that output is EMPTY — no tracked modifications>, detail:"<the porcelain output, or empty>"}.`,
+    { label: 'scout-witness-clean', phase: 'Preflight', model: 'haiku', schema: TREE_CLEAN })
+  return !!(r && r.clean === true)
+}
+
+const CACHE_REACH = { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, detail: { type: 'string' } } }
+// Make a fresh worktree's build cache warm without per-ecosystem logic: act on the scout's cacheType.
+// 'local-dir' → symlink the named dirs from the repo's COMMON checkout into the worktree (reversible);
+// refuse if the main checkout is mid-build (external mutation would poison a shared dir). 'wrapper'/'remote'
+// keep the wrapper (UP never blanks it); a wrapper whose allowlist isn't granted just logs a cold-build warning.
+async function cacheReach(info) {
+  if (!info || info.type === 'none') return
+  if (info.type === 'wrapper' || info.type === 'remote') {
+    const allowNote = info.allowlist && info.allowlist.length
+      ? ` REQUIRES sandbox write-allowlist for: ${info.allowlist.join(', ')} (one-time supervised grant) — else builds run COLD.` : ''
+    if (!(repoDir && info.wrapper)) {
+      // No linked worktree to configure, or no known wrapper → nothing to propagate (in-place
+      // checkout already uses its own wrapper). Keep the wrapper, never blank it.
+      log(`cache: type=${info.type} wrapper=${info.wrapper || 'n/a'} — wrapper kept (never blanked).${allowNote}`)
+      return
+    }
+    // The wrapper config may be GITIGNORED / local-only in the main checkout and ABSENT from this
+    // fresh worktree (which then builds COLD even though the project "keeps the wrapper"). Propagate
+    // it so the worktree actually uses the wrapper. The agent handles the ecosystem-specific config
+    // (engine stays cache-tool-blind — it only passes the wrapper name scout discovered).
+    await agent(
+      `Make this fresh worktree USE the build-cache wrapper "${info.wrapper}" the project relies on.` + REPO_NOTE + `\n` +
+      `A wrapper config (e.g. a gitignored .cargo/config.toml rustc-wrapper, or a CC/CXX compiler launcher) may live ONLY in the main checkout and be ABSENT here — so this worktree would build COLD.\n` +
+      `STEP 1 — find the main checkout: \`${GIT} rev-parse --git-common-dir\` (its parent is the main worktree root).\n` +
+      `STEP 2 — if this worktree ALREADY activates "${info.wrapper}" (its own committed config, or a user/global config the build reads), STOP and return {ok:true, detail:"already active"}.\n` +
+      `STEP 3 — otherwise replicate the main checkout's wrapper setup MINIMALLY and reversibly here (copy its local cache-wrapper config in, or write the minimal equivalent) so builds use "${info.wrapper}". Do NOT overwrite a TRACKED config; only add what is missing.\n` +
+      `Return {ok:true, detail:"<what you did>"}.${allowNote ? ' (The cache dir must also be sandbox-writable.)' : ''}`,
+      { label: 'cache-reach', phase: 'Preflight', model: 'haiku', schema: CACHE_REACH })
+    log(`cache: type=${info.type} wrapper=${info.wrapper} — propagated to worktree.${allowNote}`)
+    return
+  }
+  if (info.type === 'local-dir') {
+    if (!(info.dirs && info.dirs.length && repoDir)) {
+      // Not actionable — log for parity with the other branches (none of which run silently).
+      log(`cache: type=local-dir but ${!repoDir ? 'no repoDir — assuming in-place checkout (already warm)' : 'scout returned no cacheDirs'}; nothing to symlink`)
+      return
+    }
+    await agent(
+      `Warm this worktree's build cache by sharing it from the repo's main checkout.` + REPO_NOTE + `\n` +
+      `STEP 1 — find the common checkout: \`${GIT} rev-parse --git-common-dir\` (its parent is the main worktree root). If repoDir IS the common checkout (not a linked worktree), STOP and return {ok:true, detail:"main checkout — cache already warm"}.\n` +
+      `STEP 2 — SAFETY: if the main checkout has a build actively running (e.g. a lock under ${info.dirs.join('/, ')} held, or an obvious in-progress build), STOP and return {ok:false, detail:"main checkout busy — not sharing to avoid cache poisoning"}.\n` +
+      `STEP 3 — for EACH of these dirs [${info.dirs.join(', ')}]: if it is absent in the worktree but present in the main checkout, symlink it in: \`ln -s <main>/<dir> ${repoDir}/<dir>\`. Do NOT overwrite an existing real dir.\n` +
+      `Return {ok:true, detail:"symlinked <dirs>"}.`,
+      { label: 'cache-reach', phase: 'Preflight', model: 'haiku', schema: CACHE_REACH })
+  }
+}
+
 async function preflight() {
   if (!isExternal()) return { ok: true, detail: 'claude implementer — no external CLI to cross-check' }
 
@@ -794,6 +927,33 @@ if (_args.planOnly) return { planOnly: true, plannedTasks: planned, tasks: queue
 const sp = await checkSpDrift()   // anti-drift: warn if installed superpowers != the pinned-source version
 const pf = await preflight()
 if (!pf.ok) { log(`ABORT: preflight repo mismatch — ${pf.detail}`); return { aborted: 'preflight', detail: pf.detail, total: tasks.length } }
+// Scout: when running in goal mode without a caller-supplied verifyCmd, discover the verify command
+// and build cache shape by reading the repo. Runs once, in Preflight, before any task is built.
+// Self-configure the per-task gate when the caller supplied none (SP-like discovery).
+if (goal && !verifyCmd) {
+  const sc = await scout()
+  // Promote a self-discovered command to the deterministic gate ONLY if it red-witnesses. That needs
+  // a commit baseline (doCommit) to seed/revert the break, so an unprovable command is NEVER adopted —
+  // it degrades to LLM-review-only, logged honestly (boule council F1: don't trust an un-witnessed gate).
+  if (sc && sc.verifyCmd && doCommit && await witnessCommand(sc.verifyCmd)) {
+    // F2: independently confirm the seed-break was restored before building on this baseline.
+    if (!(await treeClean())) {
+      log('ABORT: working tree not clean after the scout red-witness — either the seeded break was not reverted, or the tree was already dirty at start; refusing to build/commit tasks on an unclean baseline')
+      return { aborted: 'witness-restore', detail: 'working tree dirty after scout red-witness seed/restore', total: tasks.length }
+    }
+    verifyCmd = sc.verifyCmd
+    if (!FULL_VERIFY_CMD) FULL_VERIFY_CMD = sc.fullVerifyCmd || sc.verifyCmd
+    log(`scout: verifyCmd="${verifyCmd}" (red-witnessed); fullVerifyCmd="${FULL_VERIFY_CMD}"; cacheType=${sc.cacheType}`)
+  } else if (sc && sc.verifyCmd && !doCommit) {
+    log(`scout: discovered "${sc.verifyCmd}" but cannot red-witness without commit:true — NOT promoting an unproven command to the deterministic gate; gate skipped, LLM review only`)
+  } else if (sc && sc.verifyCmd) {
+    log(`scout: discovered "${sc.verifyCmd}" but it stayed GREEN on a seeded break — REJECTED (vacuous gate); deterministic gate skipped, LLM review only`)
+  } else {
+    log(`scout: no verify command discovered — deterministic gate skipped, LLM review only`)
+  }
+  // Cache warming is INDEPENDENT of gate adoption — warm whenever scout returned a cache shape.
+  if (sc) { cacheInfo = { type: sc.cacheType, wrapper: sc.cacheWrapper || null, dirs: sc.cacheDirs || [], allowlist: sc.allowlistPaths || [] }; await cacheReach(cacheInfo) }
+}
 const accCannotVerify = []   // [{task, items}] — ⚠️ items from passing tasks, resolved at integration (H3)
 const resume = await loadResume()
 const alreadyDone = resume.done
@@ -854,7 +1014,7 @@ if (passedIds.length) {
   integration = await agent(
     `Adversarial fresh-eye review of the ENTIRE integrated implementation (tasks: ${passedIds.join(', ')}).` + REPO_NOTE +
     (goal ? ` GOAL:\n${goal}\n` : ' ') +
-    (finalGate ? `FIRST, run the FULL verify suite as the final gate (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS}): \`${finalGate}\`. If it exits non-zero OR times out, set approved:false with a CRITICAL finding quoting the failure — a red suite blocks integration no matter how clean the code looks.\n\n` : '') +
+    (finalGate ? `FIRST, run the FULL verify suite as the final gate under a structural timeout: write the command \`${finalGate}\` VERBATIM to /tmp/up-finalgate.sh (Write tool), then run EXACTLY (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS + 30000} as a BACKSTOP; it self-enforces a ${Math.ceil(VERIFY_TIMEOUT_MS / 1000)}s cap → SIGKILL whole process group → exit 124):\n  ${wrapWatchdog('sh', Math.ceil(VERIFY_TIMEOUT_MS / 1000), '/tmp/up-finalgate.sh')}; echo "__RC__=$?"\nIf __RC__ is non-zero (124 = the suite TIMED OUT / hung), set approved:false with a CRITICAL finding quoting the failure — a red or hung suite blocks integration no matter how clean the code looks.\n\n` : '') +
     (accCannotVerify.length ? `\n\nRESOLVE THESE cross-task / unchanged-code requirements the per-task reviewers could NOT verify from their scoped diffs. For EACH, confirm it is actually satisfied in the whole tree; if any is a real gap, set approved:false with a critical finding:\n${accCannotVerify.flatMap(c => c.items.map(it => `- [${c.task}] ${it}`)).join('\n')}\n` : '') +
     `Inspect the full working tree (\`${GIT} diff\`/\`${GIT} status\`, read files). Look for:\n` +
     `- Cross-task regressions, inconsistent interfaces, duplicated logic\n` +

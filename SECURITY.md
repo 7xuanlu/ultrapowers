@@ -17,6 +17,35 @@ across many disposable subagents, with human gates only at plan-approval and cri
   bundled engine. It never clobbers an existing real file and is removable (the symlink
   dangles harmlessly if the plugin is uninstalled).
 
+## Self-configuring preflight (Scout / red-witness / cache-reach)
+
+When you give the harness only a goal (no `verifyCmd`), a one-time **Preflight** discovers how
+to verify and how the build cache works, by reading the repo. Two of those steps mutate the
+working tree, and you should understand them:
+
+- **Red-witnessing the discovered command seeds a real break.** Before trusting a
+  self-discovered verify command as the deterministic gate, the harness makes a **small,
+  deliberately-breaking edit to one production source file**, runs the command, confirms it
+  goes red (proving the command actually exercises the code, not a vacuous pass), then
+  **restores the file**. This runs **once, in Preflight, before any task is built** (the run is
+  serial, so no task ever builds on the seeded break), and **only under `commit:true`** (so a
+  per-commit baseline exists for recovery). **Limitation:** the restore is an instruction to the
+  subagent, not a structural engine guarantee — a crashed or timed-out witness agent could in
+  principle leave the seeded break in the tree. Because it precedes all task work and the tree
+  is committed per task, you will see any stray change in the branch diff you review before
+  merging; still, run the harness on a repo under version control and review the branch.
+- **Cache-reach modifies the disposable worktree to warm it.** For a `local-dir` cache (e.g. a
+  build output dir with no compiler-cache wrapper), the harness **symlinks that directory from the
+  repo's main checkout into the worktree** so a fresh worktree isn't cold — reversible (a symlink,
+  never an overwrite of a real dir) and **refused if the main checkout appears to be mid-build**
+  (to avoid poisoning a shared cache). For `wrapper`/`remote` caches the wrapper is kept, never
+  blanked; and because a wrapper config can be gitignored/local-only (absent from a fresh worktree),
+  the harness **replicates that wrapper config into the worktree** — minimally, reversibly, scoped
+  to the worktree, and never overwriting a tracked config. If the cache dir isn't in the sandbox
+  write-allowlist the harness logs a cold-build warning rather than disabling the wrapper. The
+  allowlist grant is a **separate, supervised, one-time step** — the unattended run never edits
+  `settings.json`.
+
 ## Reporting
 Report privately, **do not open a public issue** for a sensitive vulnerability.
 
