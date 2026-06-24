@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.3.1...ultrapowers-v0.4.0) (2026-06-24)
+
+
+### Features
+
+* **engine:** adopt scout's command only if it red-witnesses (reject vacuous gate) ([16f3b88](https://github.com/7xuanlu/ultrapowers/commit/16f3b88c7b608054129d84603399d11f9a157f71))
+* **engine:** cache-reach warms a fresh worktree by scout cacheType ([8e64ddb](https://github.com/7xuanlu/ultrapowers/commit/8e64ddb0006f787856571f7c4c06e6ed6b6df392))
+* **engine:** cacheReach propagates a gitignored/local wrapper into the worktree ([a6ea4e7](https://github.com/7xuanlu/ultrapowers/commit/a6ea4e71b99b58d1f5aed5439a3768a5067ecc03))
+* **engine:** scout fullVerifyCmd drives integration gate; cacheInfo + fallback logging ([e4f0867](https://github.com/7xuanlu/ultrapowers/commit/e4f0867c5522de0140570506e86c9b5a7f89ff20))
+* **engine:** scout preflight discovers verify command + cache shape ([24b91f4](https://github.com/7xuanlu/ultrapowers/commit/24b91f4c4f04daf1f985eadb40e24864a299eeef))
+* **engine:** structural watchdog on the deterministic gate (Component C) ([f271cb0](https://github.com/7xuanlu/ultrapowers/commit/f271cb03d6a1f0ca7c12184aab61c866918919a5))
+
+
+### Bug Fixes
+
+* **engine:** never promote an un-red-witnessed command to the gate; abort on dirty tree ([43698b6](https://github.com/7xuanlu/ultrapowers/commit/43698b6b271a8db856a551fa067fbe6c4ee15a4e))
+
 ## [0.3.1](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.3.0...ultrapowers-v0.3.1) (2026-06-19)
 
 
