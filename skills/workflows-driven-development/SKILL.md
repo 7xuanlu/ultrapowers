@@ -1,6 +1,6 @@
 ---
 name: workflows-driven-development
-description: "Hand it a goal and walk away. It plans the work into tasks, builds each one test-first, reviews every step before moving on, and returns a branch ready for your review. You approve the plan up front and the final result; it spends real tokens. Built on superpowers."
+description: "A dynamic build workflow: hand it a goal, it plans the tasks, builds each one test-first, and reviews every step before moving on; with --thorough a critic keeps adding tasks until nothing's left to fix. Returns a branch ready for your review. You approve the plan and the final result; it spends real tokens. Built on superpowers."
 argument-hint: "<goal> | --tasks <file> | help"
 disable-model-invocation: true
 ---
