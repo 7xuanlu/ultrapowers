@@ -1,6 +1,6 @@
 ---
 name: workflows-driven-development
-description: "Dynamic build workflow: plans your goal into tasks, builds each test-first, and reviews every step. With --thorough, a critic adds tasks until nothing's left to fix. Returns a reviewable branch; you approve the plan and the result. Spends real tokens. Built on superpowers."
+description: "Dynamic build workflow: plans a goal into tasks, builds each test-first, and reviews every step."
 argument-hint: "<goal> | --tasks <file> | help"
 disable-model-invocation: true
 ---
