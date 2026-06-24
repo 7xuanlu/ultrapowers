@@ -16,6 +16,9 @@ test('scout runs at preflight (goal mode, no caller verifyCmd) and discovers a c
   assert.ok(scoutPrompt, 'scout must be dispatched when goal is set and no verifyCmd given')
   assert.equal(calls.find(c => c.label === 'scout').model, 'opus', 'scout is a discovery/judgment agent → opus')
   assert.match(scoutPrompt, /Cargo\.toml|package\.json|Makefile/, 'scout prompt must direct it to read build manifests')
+  // A wrapper config can be gitignored/local-only in the main checkout and absent from a fresh
+  // worktree — scout reads the worktree, so it must ALSO inspect the main checkout to detect it.
+  assert.match(scoutPrompt, /common-dir|main checkout/i, 'scout must inspect the main checkout for a gitignored/local wrapper config a fresh worktree would not inherit')
 })
 
 // Task 3: scout's fullVerifyCmd must drive the INTEGRATION final gate (the comprehensive suite),

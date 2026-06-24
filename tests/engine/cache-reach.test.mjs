@@ -22,6 +22,27 @@ function driver(scoutReturn, capture) {
   })
 }
 
+// A compiler-cache wrapper config (e.g. .cargo/config.toml rustc-wrapper=sccache) can be
+// gitignored/local-only in the main checkout and ABSENT from a fresh worktree — which then builds
+// COLD even though the project "keeps the wrapper". cacheReach must PROPAGATE the wrapper into the
+// worktree (not just log), or the self-warming never engages (the wenlan speed-test gap).
+test('wrapper cacheType propagates the wrapper into the worktree (not just a log)', async () => {
+  const cap = {}
+  const a = driver({ verifyCmd: 'cargo test', fullVerifyCmd: 'cargo test', cacheType: 'wrapper', cacheWrapper: 'sccache', cacheDirs: [], allowlistPaths: ['/Users/x/Library/Caches/Mozilla.sccache'] }, cap)
+  await runEngine({ args: { goal: 'g', implementer: 'claude', repoDir: '/tmp/wt' }, agent: a.agent, log: () => {} })
+  assert.ok(cap.prompt, 'cache-reach must DISPATCH for cacheType wrapper (propagate the wrapper, not just log)')
+  assert.equal(cap.model, 'haiku', 'cache-reach is a mechanical relay → haiku')
+  assert.match(cap.prompt, /sccache/, 'must name the wrapper to propagate')
+  assert.match(cap.prompt, /common-dir|main checkout/i, 'must locate the main checkout where a gitignored/local wrapper config lives')
+})
+
+test('wrapper cacheType with no repoDir (in-place checkout) does NOT dispatch — already warm', async () => {
+  const cap = {}
+  const a = driver({ verifyCmd: 'cargo test', fullVerifyCmd: 'cargo test', cacheType: 'wrapper', cacheWrapper: 'sccache', cacheDirs: [], allowlistPaths: [] }, cap)
+  await runEngine({ args: { goal: 'g', implementer: 'claude' }, agent: a.agent, log: () => {} })  // no repoDir
+  assert.equal(cap.prompt, undefined, 'no repoDir → in-place checkout already uses its own wrapper; nothing to propagate')
+})
+
 test('local-dir cache type symlinks the dirs into the worktree; none does nothing', async () => {
   const cap = {}
   const a = driver({ verifyCmd: 'cargo test', fullVerifyCmd: 'cargo test', cacheType: 'local-dir', cacheWrapper: null, cacheDirs: ['target'], allowlistPaths: [] }, cap)

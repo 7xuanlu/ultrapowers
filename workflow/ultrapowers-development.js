@@ -772,7 +772,10 @@ async function scout() {
   return await agent(
     `Discover how to VERIFY this project and how its BUILD CACHE works, by reading the repo.` + REPO_NOTE + `\n` +
     `Inspect: build manifests (package.json scripts, Cargo.toml, pyproject.toml, go.mod), Makefile/Justfile, ` +
-    `CI config (.github/workflows/*.yml), README. Base every field on a file you actually read — do NOT guess.\n\n` +
+    `CI config (.github/workflows/*.yml), README. Base every field on a file you actually read — do NOT guess.\n` +
+    `IMPORTANT: a compiler-cache WRAPPER config can be GITIGNORED / local-only (e.g. a .cargo/config.toml ` +
+    `rustc-wrapper=sccache that is NOT committed) and therefore ABSENT from this fresh worktree — also inspect ` +
+    `the MAIN checkout (\`${GIT} rev-parse --git-common-dir\`, its parent dir) so you don't miss a wrapper the worktree didn't inherit.\n\n` +
     `Return:\n` +
     `- verifyCmd: one shell command that runs this project's tests/checks and exits 0 iff they pass (prefer the FAST form a developer runs while iterating). null if you genuinely cannot determine one.\n` +
     `- fullVerifyCmd: the COMPREHENSIVE suite (full workspace + lint/typecheck), run once before merge. May equal verifyCmd.\n` +
@@ -825,8 +828,27 @@ const CACHE_REACH = { type: 'object', required: ['ok'], properties: { ok: { type
 async function cacheReach(info) {
   if (!info || info.type === 'none') return
   if (info.type === 'wrapper' || info.type === 'remote') {
-    log(`cache: type=${info.type} wrapper=${info.wrapper || 'n/a'} — wrapper kept (never blanked).` +
-        (info.allowlist && info.allowlist.length ? ` REQUIRES sandbox write-allowlist for: ${info.allowlist.join(', ')} (one-time supervised grant) — else builds run COLD.` : ''))
+    const allowNote = info.allowlist && info.allowlist.length
+      ? ` REQUIRES sandbox write-allowlist for: ${info.allowlist.join(', ')} (one-time supervised grant) — else builds run COLD.` : ''
+    if (!(repoDir && info.wrapper)) {
+      // No linked worktree to configure, or no known wrapper → nothing to propagate (in-place
+      // checkout already uses its own wrapper). Keep the wrapper, never blank it.
+      log(`cache: type=${info.type} wrapper=${info.wrapper || 'n/a'} — wrapper kept (never blanked).${allowNote}`)
+      return
+    }
+    // The wrapper config may be GITIGNORED / local-only in the main checkout and ABSENT from this
+    // fresh worktree (which then builds COLD even though the project "keeps the wrapper"). Propagate
+    // it so the worktree actually uses the wrapper. The agent handles the ecosystem-specific config
+    // (engine stays cache-tool-blind — it only passes the wrapper name scout discovered).
+    await agent(
+      `Make this fresh worktree USE the build-cache wrapper "${info.wrapper}" the project relies on.` + REPO_NOTE + `\n` +
+      `A wrapper config (e.g. a gitignored .cargo/config.toml rustc-wrapper, or a CC/CXX compiler launcher) may live ONLY in the main checkout and be ABSENT here — so this worktree would build COLD.\n` +
+      `STEP 1 — find the main checkout: \`${GIT} rev-parse --git-common-dir\` (its parent is the main worktree root).\n` +
+      `STEP 2 — if this worktree ALREADY activates "${info.wrapper}" (its own committed config, or a user/global config the build reads), STOP and return {ok:true, detail:"already active"}.\n` +
+      `STEP 3 — otherwise replicate the main checkout's wrapper setup MINIMALLY and reversibly here (copy its local cache-wrapper config in, or write the minimal equivalent) so builds use "${info.wrapper}". Do NOT overwrite a TRACKED config; only add what is missing.\n` +
+      `Return {ok:true, detail:"<what you did>"}.${allowNote ? ' (The cache dir must also be sandbox-writable.)' : ''}`,
+      { label: 'cache-reach', phase: 'Preflight', model: 'haiku', schema: CACHE_REACH })
+    if (allowNote) log(`cache: type=${info.type} wrapper=${info.wrapper} — propagated to worktree.${allowNote}`)
     return
   }
   if (info.type === 'local-dir') {
