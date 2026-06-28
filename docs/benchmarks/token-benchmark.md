@@ -4,8 +4,11 @@ The honest user-facing claim, the model behind it, and measured numbers.
 
 > **Strongest evidence:** the N=5 head-to-head in
 > [`campaign-n5-2026-06-14.md`](./campaign-n5-2026-06-14.md), quality TIE, total cost TIE at
-> small N ($3.90 vs $4.03 median), and a decisive **~8× flatter** coordinator (Meter A). The
-> scaling model below is what predicts those results and what happens beyond small N.
+> small N ($3.90 vs $4.03 median), and a decisive **~8× flatter** coordinator (Meter A). Beyond
+> small N, one v6 run (N=1/point) measured UP **~2× cheaper at N=12/24**
+> [`cost-and-context-ladder-2026-06-17.md`](./cost-and-context-ladder-2026-06-17.md) — mechanical
+> pass-count parity (LLM quality-judge not run), partly an SP-v6 regression, PROJECTED past task 24.
+> The scaling model below is what predicts that direction.
 
 ## Two meters, don't conflate them
 
@@ -25,9 +28,11 @@ The honest user-facing claim, the model behind it, and measured numbers.
   that sits barely above the harness's own ±20% run-to-run noise and went −3% on one scenario.
 
 > "Ultrapowers uses near-zero tokens" is **true for Meter A, false for Meter B.** Claim the
-> Meter-A flatness (a scaling/capability property that lets long builds survive); do **not** claim
-> total-billing savings or "cheaper", total cost was a measured **tie** at small N
-> (`[V campaign-n5-2026-06-14.md]`).
+> Meter-A flatness (a scaling/capability property that lets long builds survive). On Meter B: total
+> cost was a **tie** at small N (`[V campaign-n5-2026-06-14.md]`); one v6 run (N=1/point) measured
+> UP **~2× cheaper at N=12/24** (`[V cost-and-context-ladder-2026-06-17.md]`) — keep N=1/point,
+> mechanical-pass-count-parity, partly-SP-v6-regression, and PROJECTED-past-24 adjacent; never an
+> unqualified "cheaper".
 
 ## The scaling model, why PR #1717 ≠ a substitute
 
@@ -50,7 +55,9 @@ The honest user-facing claim, the model behind it, and measured numbers.
 
 **PR #1717 trims a constant off a quadratic; Ultrapowers deletes the quadratic.** Ultrapowers'
 measured, decisive win is on **Meter A** (coordinator flatness, a scaling/capability property);
-on **Meter B** it is a tie at small N and the crossover point is **modeled, not yet measured**.
+on **Meter B** it is a tie at small N, and one v6 run (N=1/point) measured the crossover — UP ~2×
+cheaper by N=12 (`[V cost-and-context-ladder-2026-06-17.md]`, mechanical pass-count parity, partly
+an SP-v6 regression, PROJECTED past task 24) — so the crossover is now measured at N=1, not merely modeled.
 For its design target (long unattended whole-goal builds) the flat coordinator is what lets the
 run survive; for a toy build, PR #1717 can be cheaper on Meter B.
 
@@ -95,7 +102,9 @@ re-witness on. Methodology: read the Workflow's reported `subagent_tokens` + `ag
   an unguarded `n<1` edge in truncate, ASCII-only slug handling). Review worked; spot-check still
   advised for self-reviewed runs.
 - **N is small and N=1 run:** no variance bars. The Meter-B-crossover (where Ultrapowers overtakes
-  on total billing) is unmeasured, it needs a large-N build and a same-spec Superpowers baseline.
+  on total billing) was unmeasured at the time of this 3-task run; it was later measured at N=1/point
+  in the v6 ladder (UP ~2× cheaper by N=12, `[V cost-and-context-ladder-2026-06-17.md]`), but still
+  needs replication at higher N and across more SP versions before any banked multiple.
 
 > A clean head-to-head against Superpowers' in-session orchestration is **not** practical to run
 > here (it would pollute the measuring session); the Superpowers side is cited from its disclosed
