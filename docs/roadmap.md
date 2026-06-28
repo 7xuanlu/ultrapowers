@@ -33,7 +33,8 @@ invent and say so plainly:
   Measured **~8× flatter** coordinator context than Superpowers (B holds ~6-7 turns vs A's
   46-56, flat across all 5 runs) `[V docs/benchmarks/campaign-n5-2026-06-14.md]`. This is a
   **scaling/capability** property, it lets a long build survive where Superpowers' growing
-  controller would overflow the context window, **not** a per-bill discount (see below).
+  controller would overflow the context window — separate from cost, where one v6 run (N=1/point)
+  measured UP ~2× cheaper at N=12/24 (see below).
 - **Inherited discipline**, watch-it-fail TDD, two-stage fail-closed review, least-powerful-model
   routing. Superpowers', adopted verbatim, with gratitude (`[V NOTICE]`).
 - **A dynamic loop-until-clean critic**, exists elsewhere (CAMEL Workforce, Magentic-One)
@@ -42,9 +43,11 @@ invent and say so plainly:
   mechanism we could not find shipped in any comparable build loop. **This is the headline.**
 
 What "ultra powerful" explicitly is **not**: it is not "better than Superpowers," not "near-zero
-tokens" and not "cheaper", on a measured N=5 head-to-head total cost was a **tie** ($3.90 vs
-$4.03 median, ranges fully overlap `[V docs/benchmarks/campaign-n5-2026-06-14.md]`; consistent
-with the Meter-B model at small N `[V docs/benchmarks/token-benchmark.md]`), and it is not a
+tokens" and not *unqualified* "cheaper". On a measured N=5 head-to-head total cost was a **tie**
+($3.90 vs $4.03 median, ranges fully overlap `[V docs/benchmarks/campaign-n5-2026-06-14.md]`); one
+v6 run (N=1/point) then measured UP **~2× cheaper at N=12/24** `[V docs/benchmarks/cost-and-context-ladder-2026-06-17.md]`
+— but that is mechanical pass-count parity (LLM quality-judge not run), partly an SP-v6 regression,
+and PROJECTED past task 24, so it is a measured direction, not a banked multiple. And it is not a
 novel orchestration paradigm. It is a disciplined, safe, unattended hand-off harness
 that slots into the Superpowers lifecycle. Marketing that erodes any of those qualifiers is a
 regression, not a feature.
@@ -192,7 +195,8 @@ The repo documents this **nowhere user-facing**.
    wf_7ad7c92f-406]`). Measured **~8× flatter** coordinator context than Superpowers head-to-head
    (~6-7 turns vs 46-56, flat across all 5 runs `[V docs/benchmarks/campaign-n5-2026-06-14.md]`).
    Runs survive arbitrarily long without compaction, a **scaling/capability** win on long builds,
-   **not** a per-bill saving (total cost was a tie at small N, same campaign). *Credit where due:
+   separate from cost (tie at N≤5; one v6 run measured UP ~2× cheaper at N=12/24, N=1/point,
+   caveated below). *Credit where due:
    this flatness is Anthropic's Workflow primitive's property, our move is choosing to host
    SDD/TDD on it, which Superpowers structurally declined.*
 3. **Two-stage fail-closed adversarial review, enforced in code**, spec-compliance THEN
@@ -241,13 +245,17 @@ The repo documents this **nowhere user-facing**.
 - **Owning the whole lifecycle as our own skills.** We deliberately **depend** on Superpowers for
   brainstorming → writing-plans → finishing-a-branch rather than re-porting obra's prose. Fewer
   moving parts, less drift, more honest.
-- **Total-billing savings (Meter B).** We do **not** claim to be cheaper-per-bill. A measured N=5
+- **Total-billing savings (Meter B).** No *unqualified* cheaper-per-bill claim. A measured N=5
   head-to-head was a **tie** ($3.90 vs $4.03 median, ranges fully overlap
-  `[V campaign-n5-2026-06-14.md]`). The scale payoff is a **capability**, not a discount:
-  Ultrapowers' flat coordinator lets long/many-task builds *complete at all*, where Superpowers'
-  growing controller would overflow the context window and force compaction or failure
-  (`[V token-benchmark.md]` scaling model; the Meter-B crossover itself is **unmeasured**). Claiming
-  a billing saving would be false.
+  `[V campaign-n5-2026-06-14.md]`); one v6 run (N=1/point) then measured UP **~2× cheaper at N=12/24**
+  ($9.43 vs $20.72 at 12; $20.19 vs $38.49 at 24) `[V cost-and-context-ladder-2026-06-17.md]` — so the
+  Meter-B crossover is now **measured** (not unmeasured), but only at N=1/point, as **mechanical
+  pass-count parity** (the LLM blind-quality judge was not run), and is **partly an SP-v6
+  coordinator-cost regression**, not purely a UP gain. The scale payoff is *also* a **capability**
+  independent of cost: Ultrapowers' flat coordinator lets long/many-task builds *complete at all*,
+  where Superpowers' growing controller would overflow the context window and force compaction or
+  failure (`[V token-benchmark.md]` scaling model; PROJECTED past task 24). A bare "X% cheaper"
+  headline that drops these caveats would be false.
 - **Inventing the flat coordinator or the dynamic critic.** The coordinator flatness is Anthropic's
   Workflow primitive; the critic pattern exists in CAMEL/Magentic-One. We host and combine; we don't
   claim the parts.

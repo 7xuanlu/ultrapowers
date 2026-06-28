@@ -85,7 +85,11 @@ drift into "ultrapowers > superpowers."
 
 ## Honesty in claims (esp. benchmarks/README)
 
-Tag factual claims (`[V src]` verified, `[I]` inferred, `[ESTIMATE: calc]`, `[U]` unknown). Never
-claim a per-bill cost discount (the measured N=5 head-to-head was a tie); the flat coordinator is a
-**scaling/capability** property, not a saving. Projections are marked PROJECTED, not measured. The
-honest comparison is the moat, marketing that erodes a qualifier is a regression, not a feature.
+Tag factual claims (`[V src]` verified, `[I]` inferred, `[ESTIMATE: calc]`, `[U]` unknown). No
+*unqualified* per-bill cost discount: the N=5 head-to-head was a tie; one v6 run (N=1/point) measured
+UP ~2× cheaper at N=12/24 (`[V cost-and-context-ladder-2026-06-17.md]`), but that is **mechanical
+pass-count parity** (the LLM blind-quality judge was not run), is **partly an SP-v6 coordinator-cost
+regression** rather than purely a UP gain, and is **PROJECTED past task 24**. A tagged, N-scoped
+discount carrying those caveats is allowed; the flat coordinator remains a **scaling/capability**
+property independent of cost. Projections are marked PROJECTED, not measured. The honest comparison
+is the moat, marketing that erodes a qualifier is a regression, not a feature.

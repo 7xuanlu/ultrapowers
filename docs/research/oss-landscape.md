@@ -9,7 +9,7 @@ evidence is not evidence of absence.
 
 | Axis | Verdict | Strength |
 |------|---------|----------|
-| Flat-coordinator (zero-context-growth) | Real **vs Superpowers** (they keep an LLM controller in-session and have declined moving off it; measured **~8× flatter** at N=5 `[V campaign-n5-2026-06-14.md]`), but the flat coordinator is **Anthropic's Workflow primitive, not our invention**. It's a **scaling/capability** property (survives long builds), **not** a cost win, total cost was a measured tie at small N. | strong *as a divergence from Superpowers*; table-stakes *vs the Workflow platform* |
+| Flat-coordinator (zero-context-growth) | Real **vs Superpowers** (they keep an LLM controller in-session and have declined moving off it; measured **~8× flatter** at N=5 `[V campaign-n5-2026-06-14.md]`), but the flat coordinator is **Anthropic's Workflow primitive, not our invention**. It's a **scaling/capability** property (survives long builds) independent of cost: total cost was a tie at N≤5, and one v6 run (N=1/point) measured UP ~2× cheaper at N=12/24 `[V cost-and-context-ladder-2026-06-17.md]` (mechanical pass-count parity, LLM quality-judge not run; partly an SP-v6 regression; PROJECTED past task 24). | strong *as a divergence from Superpowers*; table-stakes *vs the Workflow platform* |
 | Dynamic loop-until-clean critic | **Not unique**, CAMEL Workforce, OWL, Magentic-One, XAgent ship dynamic task injection | weak alone; novel only *in combination* |
 | **Mechanical re-witness RED** | **Found shipped nowhere** as a per-task step in a TDD build loop | **strongest; ~80% confidence** |
 

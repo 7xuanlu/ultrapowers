@@ -34,9 +34,12 @@ then staged/working changes). Read the touched files in full where a finding nee
    worktree/branch isolation MUST keep `SECURITY.md` accurate. A stale threat model is the most
    dangerous regression here.
 6. **Claim honesty (README / benchmarks).** Factual claims carry tags (`[V src]` verified, `[I]`
-   inferred, `[ESTIMATE: calc]`, `[U]` unknown). Never a per-bill cost-discount claim (the
-   measured N=5 head-to-head was a **tie**). Projections labeled **PROJECTED**, not measured. An
-   untagged or upgraded-qualifier claim is a regression, not a feature.
+   inferred, `[ESTIMATE: calc]`, `[U]` unknown). No *unqualified* per-bill cost-discount claim: the
+   N=5 head-to-head was a **tie**; one v6 run (N=1/point) measured UP ~2× cheaper at N=12/24
+   (`[V cost-and-context-ladder-2026-06-17.md]`) — but that is **mechanical pass-count parity** (the
+   LLM blind-quality judge was not run), is **partly an SP-v6 coordinator-cost regression**, not
+   purely a UP gain, and is **PROJECTED past task 24**. A tagged, N-scoped discount carrying those
+   caveats is allowed; an unqualified "UP is cheaper" / a dropped caveat is a regression, not a feature.
 7. **Surgical scope; re-witness-RED never weakened.** No speculative surface
    (flags/abstractions/error-handling beyond the task), no "while I'm here" refactors. The
    re-witness-RED mechanism (strip production files, re-run suite, confirm it fails) must not be

@@ -17,9 +17,12 @@ human-facing process on top of it.
   prove it fails is the headline mechanism. Its proof lives in `tests/re-witness-red/`.
 - **Surgical changes.** Touch only what the task needs; match existing style; no drive-by refactors
   or speculative surface.
-- **Honest claims.** Tag factual/benchmark claims (`[V]`/`[I]`/`[ESTIMATE]`/`[U]`). Never claim a
-  per-bill cost discount; the flat coordinator is a scaling property, not a saving. Mark
-  projections as projected.
+- **Honest claims.** Tag factual/benchmark claims (`[V]`/`[I]`/`[ESTIMATE]`/`[U]`). No *unqualified*
+  per-bill cost discount: the N=5 head-to-head was a tie; one v6 run (N=1/point) measured UP ~2×
+  cheaper at N=12/24 (`[V cost-and-context-ladder-2026-06-17.md]`) — mechanical pass-count parity (LLM
+  quality-judge not run), partly an SP-v6 regression, PROJECTED past task 24. A tagged, N-scoped
+  discount carrying those caveats is allowed; unqualified "cheaper" marketing is not. Mark projections
+  as projected.
 
 ## Dev setup & checks
 
