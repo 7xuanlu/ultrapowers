@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.4.1...ultrapowers-v0.4.2) (2026-06-28)
+
+
+### Bug Fixes
+
+* **engine:** typed agentSafe catch + per-stage routing so one flaky probe can't abort a run ([5b467e4](https://github.com/7xuanlu/ultrapowers/commit/5b467e435283ee55b3f243837c183cdb4ef91db0))
+* **engine:** typed agentSafe catch + per-stage routing; docs: refresh v6 cost claims ([c5aff91](https://github.com/7xuanlu/ultrapowers/commit/c5aff9101b1ebb91f8867c5a32da22fad58a294d))
+
 ## [0.4.1](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.4.0...ultrapowers-v0.4.1) (2026-06-24)
 
 
