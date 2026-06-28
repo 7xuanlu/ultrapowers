@@ -180,6 +180,29 @@ const REPO_NOTE = repoDir
 let fallbackStreak = 0, degraded = false
 const DONE_OK = new Set(['done', 'done_with_concerns'])
 
+// agentSafe: TYPED catch for the ONE recoverable agent() failure — a weak model that finishes
+// WITHOUT calling StructuredOutput (the harness throws "...completed without calling
+// StructuredOutput..."; observed twice: a haiku probe rendered its tool call as XML prose then
+// hallucinated compliance on the nudge). That failure is semantically a null answer, so we
+// downgrade it to null and let the CALL SITE'S existing null policy take over (gates fail-closed;
+// disposable probes fall back). EVERYTHING ELSE re-throws — an auth/network/transport/programming
+// error is NOT "no usable answer" and must stay LOUD, not be laundered into a silent success.
+// Boule council wf_ed504e61-4c7 rejected the blanket "catch-all -> null" form: a throw on plan()
+// routed to [] -> empty queue -> ok:true on a no-op run (verified :717/:1034). So callers that
+// turn null into "nothing to do" (plan/critic) handle null EXPLICITLY below; they no longer
+// silently succeed. The "no StructuredOutput" signal is matched on the message (the harness sets
+// no stable error code), kept narrow so a coincidental message never widens the catch.
+const isNoStructuredOutput = e =>
+  !!e && typeof e.message === 'string' && /without calling StructuredOutput/i.test(e.message)
+const agentSafe = async (prompt, opts) => {
+  try { return await agent(prompt, opts) }
+  catch (e) {
+    if (!isNoStructuredOutput(e)) throw e   // infra/auth/programming errors stay LOUD
+    log(`agent ${(opts && opts.label) || '?'} did not call StructuredOutput — treating as null (recoverable)`)
+    return null
+  }
+}
+
 // ---- TDD discipline (VERBATIM from superpowers:test-driven-development SKILL.md) ----
 // This IS the superpowers TDD skill content — not a paraphrase, not a brief.
 // Superpowers TDD is also a prompt-level skill (not an enforcement gate), so using the
@@ -400,7 +423,7 @@ async function implement(task, issues, prior) {
         `--- BRIEF FOR GEMINI ---\n${brief}`)
     }
     for (let a = 0; a <= RETRY; a++) {
-      const r = await agent(cliPrompt(),
+      const r = await agentSafe(cliPrompt(),
         { label: `${IMPLEMENTER}:${task.id}#${a + 1}`, phase: `task:${task.id}`, model: CLI_WRAPPER_MODEL, schema: IMPL })
       if (r && DONE_OK.has(r.status)) { fallbackStreak = 0; return { ...r, by: IMPLEMENTER } }
       if (r && (r.status === 'blocked' || r.status === 'needs_context')) break
@@ -410,7 +433,7 @@ async function implement(task, issues, prior) {
     if (fallbackStreak >= OUTAGE_STREAK) { degraded = true; log(`DEGRADED: ${fallbackStreak} consecutive ${IMPLEMENTER} fallbacks — likely correlated outage`) }
     // B1 fix: fallback MUST use a capable model (opus), not inherit the session default.
     // SDD: "re-dispatch with a more capable model" (SKILL.md line 116).
-    const c = await agent(
+    const c = await agentSafe(
       `${IMPLEMENTER} could not complete this (transient failure or BLOCKED). Implement task ${task.id} YOURSELF (the more-capable fallback).\n\n${brief}\n\n` +
       `status:"blocked" ONLY if it genuinely cannot be done as specified.`,
       { label: `claude-fallback:${task.id}`, phase: `task:${task.id}`, model: 'opus', schema: IMPL })
@@ -420,7 +443,7 @@ async function implement(task, issues, prior) {
   // implementer === 'claude': direct, model-routed (cheap for mechanical impl).
   // B2 fix: if cheap model fails all retries, escalate to opus once (SDD: "re-dispatch with a more capable model").
   for (let a = 0; a <= RETRY; a++) {
-    const r = await agent(
+    const r = await agentSafe(
       `Implement task ${task.id} YOURSELF in this repo (no external CLI).\n\n${brief}`,
       { label: `claude:${task.id}#${a + 1}`, phase: `task:${task.id}`, model: IMPL_MODEL, schema: IMPL })
     if (r && DONE_OK.has(r.status)) return { ...r, by: 'claude' }
@@ -428,7 +451,7 @@ async function implement(task, issues, prior) {
       // Escalate to capable model before giving up (SDD graduated response step 2)
       if (IMPL_MODEL !== 'opus') {
         log(`${task.id}: ${r.status} at ${IMPL_MODEL} — escalating to opus`)
-        const esc = await agent(
+        const esc = await agentSafe(
           `A cheaper model (${IMPL_MODEL}) reported "${r.status}" on this task. You are the more-capable escalation. Implement task ${task.id} YOURSELF.\n\n${brief}`,
           { label: `claude-escalate:${task.id}`, phase: `task:${task.id}`, model: 'opus', schema: IMPL })
         if (esc && DONE_OK.has(esc.status)) return { ...esc, by: 'claude-escalated' }
@@ -440,7 +463,7 @@ async function implement(task, issues, prior) {
   // All retries at cheap model exhausted — one final attempt at opus
   if (IMPL_MODEL !== 'opus') {
     log(`${task.id}: ${RETRY + 1} failures at ${IMPL_MODEL} — final escalation to opus`)
-    const esc = await agent(
+    const esc = await agentSafe(
       `A cheaper model (${IMPL_MODEL}) failed ${RETRY + 1} times on this task. You are the more-capable fallback. Implement task ${task.id} YOURSELF.\n\n${brief}`,
       { label: `claude-escalate:${task.id}`, phase: `task:${task.id}`, model: 'opus', schema: IMPL })
     if (esc) return { ...esc, by: 'claude-escalated' }
@@ -460,7 +483,7 @@ async function verify(task) {
   // trailing `; echo "__RC__=$?"` still prints __RC__=124. verifyCmd is passed via a file (no quoting hazard).
   const verifyFile = `/tmp/up-verify-${task.id}.sh`
   const sec = Math.ceil(VERIFY_TIMEOUT_MS / 1000)
-  const v = await agent(
+  const v = await agentSafe(
     `Run this project's verify command under a structural timeout, then report its exit code. Do NOT edit any project files.\n` +
     `STEP 1 — write the VERIFY COMMAND below VERBATIM to ${verifyFile} using the Write tool.\n` +
     `STEP 2 — run EXACTLY this with the Bash tool (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS + 30000} (ms) as a BACKSTOP; the command self-enforces a ${sec}s hard cap that SIGKILLs the command's whole process group and exits 124):\n` +
@@ -483,7 +506,7 @@ async function redWitness(task, baseSha) {
   if (!RED_WITNESS || !verifyCmd || !doCommit || !baseSha) return { applicable: false }
   const rwFile = `/tmp/up-redwitness-${task.id}.sh`
   const sec = Math.ceil(VERIFY_TIMEOUT_MS / 1000)
-  const w = await agent(
+  const w = await agentSafe(
     `RE-WITNESS RED for task ${task.id}: confirm this task's NEW test fails without its implementation.` + REPO_NOTE + `\n\n` +
     `STEP 1 — list this task's changed files: \`${GIT} diff --name-only ${baseSha}..HEAD\`. Classify each as TEST ` +
     `(path matches *.test.*, *.spec.*, or a __tests__/test/tests directory) or PRODUCTION (everything else).\n` +
@@ -529,7 +552,7 @@ async function reviewTask(task, r, baseSha, diffFile) {
     `## Output\nReturn {specVerdict, findings:[{severity, dimension:'spec'|'quality', issue (with file:line), fix}], cannotVerify:[<requirement + what the controller should check>], strengths:[...], assessment}.\n` +
     `specVerdict='pass' if spec is fully met in the diff; 'fail' if a requirement is missing/extra/misunderstood (a 'fail' MUST be accompanied by at least one critical|important spec-dimension finding); 'cannot_verify' ONLY for requirements outside the diff (also list them in cannotVerify). Set approved=true ONLY if specVerdict!=='fail' AND no critical|important findings.`
   for (let k = 0; k <= REVIEW_RETRY; k++) {
-    const rev = await agent(prompt, { label: `review-task:${task.id}#${k + 1}`, phase: `task:${task.id}`, model: 'opus', schema: TASK_REVIEW })
+    const rev = await agentSafe(prompt, { label: `review-task:${task.id}#${k + 1}`, phase: `task:${task.id}`, model: 'opus', schema: TASK_REVIEW })
     if (rev) return rev
     log(`task reviewer errored on ${task.id} (${k + 1}/${REVIEW_RETRY + 1})`)
   }
@@ -541,7 +564,7 @@ async function reviewTask(task, r, baseSha, diffFile) {
 // uses BASE_SHA/HEAD_SHA for precise diff scoping.
 const HEAD_SHA = { type: 'object', required: ['sha'], properties: { sha: { type: 'string' } } }
 async function captureHead(taskId) {
-  const r = await agent(
+  const r = await agentSafe(
     `Run \`${GIT} rev-parse HEAD\` with Bash and return {sha:"<the full sha>"}.`,
     { label: `capture-head:${taskId}`, phase: `task:${taskId}`, model: 'haiku', schema: HEAD_SHA })
   return (r && r.sha) || null
@@ -552,7 +575,7 @@ async function captureHead(taskId) {
 const PKG = { type: 'object', required: ['path'], properties: { path: { type: 'string' }, detail: { type: 'string' } } }
 async function reviewPackage(task, baseSha) {
   if (!baseSha) return null
-  const p = await agent(
+  const p = await agentSafe(
     `Write this task's review package to a file with Bash, then return its path.` + REPO_NOTE + `\n` +
     `STEP 1: \`SDD="$(${GIT} rev-parse --git-path sdd)"; mkdir -p "$SDD"\`.\n` +
     `STEP 2: set OUT="$SDD/review-${task.id}.diff" and write into it, in order: the commit list (\`${GIT} log --oneline ${baseSha}..HEAD\`), a stat summary (\`${GIT} diff --stat ${baseSha}..HEAD\`), then the full diff (\`${GIT} diff -U10 ${baseSha}..HEAD\`). Do NOT modify any tracked file.\n` +
@@ -566,7 +589,7 @@ async function reviewPackage(task, baseSha) {
 // MAX_TASKS ceiling bounds total growth. Returns subtasks or null (atomic / decompose declined).
 async function decompose(task, reason) {
   if (task._fromDecompose) return null   // don't recursively split a split product
-  const d = await agent(
+  const d = await agentSafe(
     `Task ${task.id} was reported "${reason}" — likely too large or complex to implement in one pass.` + REPO_NOTE + `\n\n` +
     `TASK SPEC:\n${task.spec}\n\n` +
     `Decide: is this ATOMIC (genuinely cannot be split — return {atomic:true}), or can it be split into 2-4 SMALLER, ` +
@@ -587,7 +610,7 @@ async function escalateBlocked(task, r) {
 // A self-flagged correctness/scope doubt gets a fix pass before the gate; observational ones proceed.
 async function triageConcerns(task, r) {
   if (r.status !== 'done_with_concerns' || !r.concerns) return r
-  const t = await agent(
+  const t = await agentSafe(
     `The implementer completed task ${task.id} but flagged concerns:\n"${r.concerns}"\n\n` +
     `Are these about CORRECTNESS or SCOPE (the work may be wrong/incomplete — must be addressed before review), ` +
     `or merely OBSERVATIONAL (e.g. "this file is getting large" — note and proceed)?\n` +
@@ -610,7 +633,7 @@ async function triageConcerns(task, r) {
 const SCOPEACK = { type: 'object', properties: { restored: { type: 'boolean' } } }
 async function scopeGuard(task, baseSha) {
   if (!SCOPE_GUARD || !baseSha) return { deleted: [] }
-  const g = await agent(
+  const g = await agentSafe(
     `Run \`${GIT} diff --diff-filter=D -M --name-only ${baseSha}\` with Bash — baseSha vs the WORKING TREE, ` +
     `so it catches deletions whether committed or not (a rename is NOT a delete). ` +
     `Return {deleted:[paths]} — files that EXISTED at the base and are GONE now (empty array if none).`,
@@ -626,7 +649,7 @@ async function scopeGuard(task, baseSha) {
   return { deleted: deleted.filter(p => !named.has(p)) }
 }
 async function restoreDeleted(task, baseSha, paths) {
-  await agent(
+  await agentSafe(
     `An implementer deleted files OUT OF SCOPE. Restore them: run \`${GIT} checkout ${baseSha} -- ${paths.join(' ')}\` with Bash, then confirm \`${GIT} status\`. Return {restored:true}.`,
     { label: `scope-restore:${task.id}`, phase: `task:${task.id}`, model: 'haiku', schema: SCOPEACK })
 }
@@ -708,13 +731,17 @@ async function blockOrFail(task, r) {
 
 // Decompose a goal into ordered, independent, individually-testable tasks (judgment -> opus).
 async function plan(g) {
-  const p = await agent(
+  const p = await agentSafe(
     `Decompose this goal into an ORDERED list of small, surgical, independently-testable implementation tasks. ` +
     `Each task needs a STABLE slug id and a spec embedding acceptance criteria + how to verify it.\n` +
     `Tasks should be ordered so each can be implemented, tested, and committed independently.\n` +
     `Each spec MUST include what a FAILING test looks like (red) and what "green" means.\n\nGOAL:\n${g}\n\nReturn {tasks:[{id, spec}]}.`,
     { label: 'plan', phase: 'Plan', model: 'opus', schema: PLAN })
-  return (p && p.tasks) || []
+  // Per-stage routing (boule wf_ed504e61-4c7): distinguish a FAILED planner (agentSafe null) from
+  // a planner that legitimately returned zero tasks. null -> the caller aborts LOUD; an empty/odd
+  // result still degrades to [] (no tasks to build). Never let a planning failure become ok:true.
+  if (p === null) return null
+  return p.tasks || []
 }
 
 // Dry-until-clean completeness critic.
@@ -723,21 +750,24 @@ async function critic(g, builtIds, round, priorGaps) {
     ? `\n\nGaps you flagged in a PRIOR round: ${priorGaps.map(x => `"${x}"`).join('; ')}.\n` +
       `Do NOT re-emit any of these unless it is STILL genuinely unaddressed after inspecting the tree — and if you re-emit, it must be the SAME underlying gap, not a reworded duplicate. Only emit GENUINELY NEW gaps.`
     : ''
-  const c = await agent(
+  const c = await agentSafe(
     `Completeness critic for an unattended build.` + REPO_NOTE + ` GOAL:\n${g}\n\nTasks completed so far: ${builtIds.join(', ') || 'none'}.\n` +
     `Inspect the ACTUAL working tree (\`${GIT} diff\`/\`${GIT} status\`, read files${verifyCmd ? `, and run \`${verifyCmd}\`` : ''}). ` +
     `Decide: is the goal fully met AND clean — no gaps, no stub/TODO/placeholder, and tests genuinely cover it and were NOT weakened or the gate edited to pass?\n` +
     `If yes -> {clean:true}. If not -> {clean:false, gaps:[...], newTasks:[{id, spec}]} where newTasks have FRESH unique ids that close the gaps. ` +
     `Each new task spec MUST include what a FAILING test looks like (red) and what "green" means. Keep tasks surgical.` + dedup,
     { label: `critic#${round}`, phase: 'Plan', model: 'opus', schema: CRITIC })
-  return c || { clean: true, gaps: ['critic errored — stopping to avoid an unbounded loop'], newTasks: [] }
+  // Per-stage routing (boule wf_ed504e61-4c7): a FAILED critic (agentSafe null) must NOT be
+  // laundered into clean:true (that silently ends the loop and reports ok on an unverified build).
+  // Surface the failure with clean:false + a sentinel gap so the run section can stop NON-clean.
+  return c || { clean: false, gaps: ['critic did not return a verdict — stopping NON-clean to avoid a false all-clear'], newTasks: [], _criticFailed: true }
 }
 
 // Crash-resume helpers (cheap model).
 // Crash-resume: read {id, ok, by, cannotVerify?} lines. Rebuild done-ids AND the ⚠️ accumulator (H2).
 async function loadResume() {
   if (!logFile) return { done: new Set(), cannotVerify: [] }
-  const r = await agent(
+  const r = await agentSafe(
     `Read ${logFile} if it exists (JSONL, one {"id","ok","cannotVerify"?} per line). Return ` +
     `{done:[ids where ok===true], cannotVerify:[{task:id, items:[the cannotVerify strings]} for each ok line whose cannotVerify is non-empty]}. Missing file => {done:[], cannotVerify:[]}.`,
     { label: 'resume-load', phase: 'Preflight', model: 'haiku', schema: RESUME })
@@ -745,7 +775,7 @@ async function loadResume() {
 }
 async function checkpoint(res) {
   if (!logFile) return
-  await agent(
+  await agentSafe(
     `Append exactly one line to ${logFile} (create dirs/file if needed) with Bash, then stop:\n` +
     `${JSON.stringify({ id: res.task, ok: res.ok, by: res.by || null, reason: res.reason || null, cannotVerify: res.cannotVerify || [] })}\n` +
     `Use: printf '%s\\n' '<the json>' >> ${logFile}` +
@@ -755,7 +785,7 @@ async function checkpoint(res) {
 
 // Anti-drift: warn if the installed superpowers differs from the version our embedded prompts were sourced from.
 async function checkSpDrift() {
-  const r = await agent(
+  const r = await agentSafe(
     `List the version directories under ~/.claude/plugins/cache/claude-plugins-official/superpowers/ ` +
     `(Bash: \`ls -1 ~/.claude/plugins/cache/claude-plugins-official/superpowers/ 2>/dev/null\`). ` +
     `Return {installed:[the directory names, e.g. "5.1.0"]}. Empty/missing => {installed:[]}.`,
@@ -769,7 +799,7 @@ async function checkSpDrift() {
 // Self-configuring verify: discover HOW to test + how the build cache works by reading the repo —
 // what SP's in-session agent does implicitly. Ecosystem knowledge lives HERE (an LLM), not the engine.
 async function scout() {
-  return await agent(
+  return await agentSafe(
     `Discover how to VERIFY this project and how its BUILD CACHE works, by reading the repo.` + REPO_NOTE + `\n` +
     `Inspect: build manifests (package.json scripts, Cargo.toml, pyproject.toml, go.mod), Makefile/Justfile, ` +
     `CI config (.github/workflows/*.yml), README. Base every field on a file you actually read — do NOT guess.\n` +
@@ -794,7 +824,7 @@ async function witnessCommand(cmd) {
   if (!doCommit) return false  // no commit baseline → can't safely seed/revert → can't PROVE the gate → refuse
   const file = `/tmp/up-scout-verify.sh`
   const sec = Math.ceil(VERIFY_TIMEOUT_MS / 1000)
-  const w = await agent(
+  const w = await agentSafe(
     `RED-WITNESS the discovered verify command — prove it exercises the code (not a vacuous pass).` + REPO_NOTE + `\n` +
     `STEP 1 — pick ONE production source file (NOT a test, NOT config) and make a SMALL guaranteed-breaking change (flip a boolean, change a return value, or introduce a syntax error). Note the file.\n` +
     `STEP 2 — write this command VERBATIM to ${file}: ${cmd}\n` +
@@ -804,7 +834,12 @@ async function witnessCommand(cmd) {
     `Return {applicable:true, redWitnessed:<true iff __RC__ was NON-zero — the command FAILED on the broken code, which is GOOD>, detail:"<what you broke; RC>"}. ` +
     `redWitnessed=false ONLY if the command PASSED (RC=0) despite the real break = vacuous gate.`,
     { label: 'scout-witness', phase: 'Preflight', model: 'haiku', schema: REDWITNESS })
-  return !(w && w.redWitnessed === false)
+  // Fail-CLOSED: only a DEFINITE redWitnessed:true promotes the command to the deterministic gate.
+  // A null witness (agentSafe swallowed a no-StructuredOutput throw) or any non-true result must
+  // REFUSE — else an unproven command becomes the gate without ever red-witnessing it (boule F1).
+  // The old `!(w && w.redWitnessed === false)` returned true on null = the exact fail-open this
+  // closes (surfaced by invariant-review after the agentSafe swap widened the null trigger here).
+  return !!(w && w.redWitnessed === true)
 }
 
 const TREE_CLEAN = { type: 'object', required: ['clean'], properties: { clean: { type: 'boolean' }, detail: { type: 'string' } } }
@@ -813,7 +848,7 @@ const TREE_CLEAN = { type: 'object', required: ['clean'], properties: { clean: {
 // baseline every task then builds on. The engine decides clean/dirty; only tracked modifications count
 // (a fresh seeded break edits a tracked source file; untracked/ignored cache dirs don't matter here).
 async function treeClean() {
-  const r = await agent(
+  const r = await agentSafe(
     `Run \`${GIT} status --porcelain --untracked-files=no\` and report whether the working tree has any MODIFIED tracked files.` + REPO_NOTE + `\n` +
     `Return {clean:<true iff that output is EMPTY — no tracked modifications>, detail:"<the porcelain output, or empty>"}.`,
     { label: 'scout-witness-clean', phase: 'Preflight', model: 'haiku', schema: TREE_CLEAN })
@@ -840,7 +875,7 @@ async function cacheReach(info) {
     // fresh worktree (which then builds COLD even though the project "keeps the wrapper"). Propagate
     // it so the worktree actually uses the wrapper. The agent handles the ecosystem-specific config
     // (engine stays cache-tool-blind — it only passes the wrapper name scout discovered).
-    await agent(
+    await agentSafe(
       `Make this fresh worktree USE the build-cache wrapper "${info.wrapper}" the project relies on.` + REPO_NOTE + `\n` +
       `A wrapper config (e.g. a gitignored .cargo/config.toml rustc-wrapper, or a CC/CXX compiler launcher) may live ONLY in the main checkout and be ABSENT here — so this worktree would build COLD.\n` +
       `STEP 1 — find the main checkout: \`${GIT} rev-parse --git-common-dir\` (its parent is the main worktree root).\n` +
@@ -857,7 +892,7 @@ async function cacheReach(info) {
       log(`cache: type=local-dir but ${!repoDir ? 'no repoDir — assuming in-place checkout (already warm)' : 'scout returned no cacheDirs'}; nothing to symlink`)
       return
     }
-    await agent(
+    await agentSafe(
       `Warm this worktree's build cache by sharing it from the repo's main checkout.` + REPO_NOTE + `\n` +
       `STEP 1 — find the common checkout: \`${GIT} rev-parse --git-common-dir\` (its parent is the main worktree root). If repoDir IS the common checkout (not a linked worktree), STOP and return {ok:true, detail:"main checkout — cache already warm"}.\n` +
       `STEP 2 — SAFETY: if the main checkout has a build actively running (e.g. a lock under ${info.dirs.join('/, ')} held, or an obvious in-progress build), STOP and return {ok:false, detail:"main checkout busy — not sharing to avoid cache poisoning"}.\n` +
@@ -874,7 +909,7 @@ async function preflight() {
   // target repo, a gemini delegate would silently edit the WRONG repo. Probe it and downgrade to claude
   // (the claude path is repo-scoped via `git -C repoDir` + REPO_NOTE, so it's always safe).
   if (IMPLEMENTER === 'gemini' && repoDir) {
-    const g = await agent(
+    const g = await agentSafe(
       `Find out where the Gemini CLI actually runs.\n` +
       `STEP 1: ToolSearch "select:mcp__gemini-cli__ask-gemini" to load the deferred tool.\n` +
       `STEP 2: call mcp__gemini-cli__ask-gemini with prompt "run \`pwd\` and reply with ONLY that absolute path, nothing else".\n` +
@@ -893,7 +928,7 @@ async function preflight() {
   // hangs on a permission prompt / sandbox failure and surfaces HERE, not after a wasted task. Never abort:
   // the per-task claude fallback covers a flaking codex.
   if (IMPLEMENTER === 'codex') {
-    const c = await agent(
+    const c = await agentSafe(
       `Confirm the Codex CLI is runnable and pre-approved (we use \`codex exec\`, NOT any MCP tool).\n` +
       `Run with the Bash tool (timeout 30000): \`codex --version\`\n` +
       `Return {ok:true, detail:"<version string>"} if it prints a version promptly; {ok:false, detail:"<error / it hung / permission denied>"} otherwise.`,
@@ -917,7 +952,10 @@ if (tasks.length) {
 }
 
 // Seed the worklist: explicit tasks win; otherwise plan() decomposes the goal.
+// plan() returns null (not []) when the planner agent FAILED (agentSafe). Abort LOUD — never let a
+// planning failure fall through to an empty queue + a vacuous ok:true (boule wf_ed504e61-4c7).
 let queue = tasks.length ? [...tasks] : await plan(goal)
+if (queue === null) { log('ABORT: planner did not return a task list (agent failed) — refusing to report success on a no-op run'); return { error: 'plan-failed', ok: false, goal, total: 0, note: 'plan() agent failed to produce a task list; nothing was built' } }
 const planned = queue.length
 // planOnly: return the decomposition for human sign-off BEFORE building.
 // No preflight/resume needed — we're not editing code, just planning.
@@ -995,6 +1033,9 @@ while (queue.length && round < MAX_ROUNDS) {
   if (lowOnBudget()) { stopReason = 'budget'; log('STOP: budget ceiling hit before re-planning'); break }
   const c = await critic(goal, results.filter(x => x.ok).map(x => x.task), round, lastGaps)   // N7: pass prior gaps to dedup
   lastGaps = c.gaps || []
+  // A FAILED critic (agentSafe null -> _criticFailed) must stop the run NON-clean: it never
+  // verified completeness, so ok:true would be a false all-clear (boule wf_ed504e61-4c7).
+  if (c._criticFailed) { stopReason = 'critic-failed'; log(`round ${round}: critic did not return a verdict — stopping NON-clean`); queue = []; break }
   if (c.clean) { log(`round ${round}: critic says CLEAN`); queue = []; break }
   queue = (c.newTasks || []).filter(t => t && t.id && !seen.has(t.id))
   log(`round ${round}: critic found ${lastGaps.length} gap(s) -> ${queue.length} new task(s)`)
@@ -1011,7 +1052,7 @@ let integration = null
 if (passedIds.length) {
   // #3: final full-suite gate — per-task verify can be fast/scoped; run the comprehensive suite ONCE here.
   const finalGate = FULL_VERIFY_CMD || verifyCmd
-  integration = await agent(
+  integration = await agentSafe(
     `Adversarial fresh-eye review of the ENTIRE integrated implementation (tasks: ${passedIds.join(', ')}).` + REPO_NOTE +
     (goal ? ` GOAL:\n${goal}\n` : ' ') +
     (finalGate ? `FIRST, run the FULL verify suite as the final gate under a structural timeout: write the command \`${finalGate}\` VERBATIM to /tmp/up-finalgate.sh (Write tool), then run EXACTLY (SET the Bash tool \`timeout\` to ${VERIFY_TIMEOUT_MS + 30000} as a BACKSTOP; it self-enforces a ${Math.ceil(VERIFY_TIMEOUT_MS / 1000)}s cap → SIGKILL whole process group → exit 124):\n  ${wrapWatchdog('sh', Math.ceil(VERIFY_TIMEOUT_MS / 1000), '/tmp/up-finalgate.sh')}; echo "__RC__=$?"\nIf __RC__ is non-zero (124 = the suite TIMED OUT / hung), set approved:false with a CRITICAL finding quoting the failure — a red or hung suite blocks integration no matter how clean the code looks.\n\n` : '') +
