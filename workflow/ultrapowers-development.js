@@ -110,8 +110,11 @@ const BUDGET_RESERVE = 50_000
 //   ~/.claude/plugins/cache/claude-plugins-official/superpowers/<new>/skills/{test-driven-development,subagent-driven-development}/
 // v6 reviewer source: subagent-driven-development/task-reviewer-prompt.md (merged spec+quality);
 // final review: requesting-code-review/code-reviewer.md. TDD + implementer Code-Org bodies are
-// byte-identical 5.1.0->6.0.0 (only an @import->link change in TDD's anti-patterns reference).
-const SP_VERSION = '6.0.0'
+// byte-identical 5.1.0->6.0.0 (only an @import->link change in TDD's anti-patterns reference), and
+// all four pin-governed sources (TDD SKILL.md, implementer-prompt.md, task-reviewer-prompt.md,
+// code-reviewer.md) are byte-identical 6.0.0->6.1.1 (verified 2026-07-06; 6.1.1's only skill change
+// was subagent-driven-development/SKILL.md's SDD-ledger path, which the engine does NOT embed).
+const SP_VERSION = '6.1.1'
 
 // Pluggable implementer + model routing (SDD: least-powerful-per-role).
 // 'codex'|'gemini' = cheap external CLI via its own CLI MCP tool + capable Claude fallback.

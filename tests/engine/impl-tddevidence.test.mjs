@@ -6,7 +6,7 @@ test('implementer brief requires TDD evidence and test cadence', async () => {
   let implPrompt = null
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l.startsWith('capture-head:')) return { sha: 'a'.repeat(40) }
     if (l.startsWith('claude:')) { implPrompt = p; return { status: 'done', files: ['src/x.js'], summary: 'ok', tddEvidence: { red: 'node --test -> FAIL', green: 'node --test -> PASS' } } }
     if (l.startsWith('verify:')) return { code: 0, tail: 'ok' }

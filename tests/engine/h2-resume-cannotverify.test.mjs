@@ -7,7 +7,7 @@ import { runEngine, makeAgent } from './harness.mjs'
 test('resume rebuilds cannot_verify from the checkpoint log (H2)', async () => {
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'resume-load') return { done: ['t1'], cannotVerify: [{ task: 't1', items: ['REQ-9 in unchanged db.js'] }] }
     if (l.startsWith('capture-head:')) return { sha: 'a'.repeat(40) }
     if (l.startsWith('claude:')) return { status: 'done', files: ['src/y.js'], summary: 'ok' }

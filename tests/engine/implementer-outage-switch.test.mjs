@@ -11,7 +11,7 @@ import { runEngine, makeAgent } from './harness.mjs'
 // root cause: `codex exec` app-server can't init under the harness sandbox, CC #10524).
 
 const base = (over = {}) => ({
-  sp: (l) => l === 'sp-version-check' ? { installed: ['6.0.0'] } : undefined,
+  sp: (l) => l === 'sp-version-check' ? { installed: ['6.1.1'] } : undefined,
   head: (l) => l.startsWith('capture-head:') ? { sha: 'b'.repeat(40) } : undefined,
   verify: (l) => l.startsWith('verify:') ? { code: 0, tail: 'ok' } : undefined,
   red: (l) => l.startsWith('red-witness:') ? { applicable: false } : undefined,

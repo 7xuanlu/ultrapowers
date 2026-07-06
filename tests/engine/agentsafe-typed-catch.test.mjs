@@ -16,7 +16,7 @@ const NO_SO = () => { const e = new Error('agent({schema}): subagent completed w
 test('plan() throwing no-StructuredOutput never yields ok:true on an empty build (fail-open)', async () => {
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'plan') throw NO_SO()       // planner can't produce tasks
     return undefined
   })
@@ -32,7 +32,7 @@ test('plan() throwing no-StructuredOutput never yields ok:true on an empty build
 test('review-package throwing is tolerated — the task still completes (recoverable probe)', async () => {
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l.startsWith('capture-head:')) return { sha: 'c'.repeat(40) }
     if (l.startsWith('claude:')) return { status: 'done', files: ['src/x.js'], summary: 'ok' }
     if (l.startsWith('verify:')) return { code: 0, tail: 'ok' }
@@ -57,7 +57,7 @@ test('review-package throwing is tolerated — the task still completes (recover
 test('critic() throwing never silently marks the run clean/ok (loopUntilClean)', async () => {
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'plan') return { tasks: [{ id: 't1', spec: 'x' }] }
     if (l.startsWith('capture-head:')) return { sha: 'd'.repeat(40) }
     if (l.startsWith('claude:')) return { status: 'done', files: ['src/x.js'], summary: 'ok' }
@@ -84,7 +84,7 @@ test('critic() throwing never silently marks the run clean/ok (loopUntilClean)',
 test('scout-witness throwing never promotes an un-red-witnessed command to the gate (fail-closed)', async () => {
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'scout') return { verifyCmd: 'npm test', fullVerifyCmd: 'npm test', cacheType: 'none', cacheWrapper: null, cacheDirs: [], allowlistPaths: [] }
     if (l === 'scout-witness') throw NO_SO()   // the witness can't prove the command
     if (l === 'plan') return { tasks: [] }     // empty plan -> no tasks built; we only assert gate non-adoption

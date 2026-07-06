@@ -41,9 +41,9 @@ runtime/manual gate (it cannot run in stock CI).
 
 ## Things that are load-bearing, do not casually change
 
-- **`SP_VERSION = '5.1.0'`** (`workflow/ultrapowers-development.js:88`) pins the Superpowers
+- **`SP_VERSION = '6.1.1'`** (`workflow/ultrapowers-development.js:117`) pins the Superpowers
   version the embedded prompts (TDD + the two reviewer briefs) are synced to; the engine logs
-  `SP DRIFT` if the installed Superpowers differs (`:682`). If you edit an embedded prompt, keep
+  `SP DRIFT` if the installed Superpowers differs (`:806`). If you edit an embedded prompt, keep
   it synced to this pin and update the pin deliberately.
 - **The two-stage review is fail-CLOSED**, spec-compliance THEN code-quality, blocking derived
   from the findings, not the model's `approved` boolean. Don't make it fail-open.

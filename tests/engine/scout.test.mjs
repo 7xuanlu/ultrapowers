@@ -7,7 +7,7 @@ test('scout runs at preflight (goal mode, no caller verifyCmd) and discovers a c
   let scoutPrompt = null
   const { agent, calls } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'scout') { scoutPrompt = p; return { verifyCmd: 'cargo nextest run', fullVerifyCmd: 'cargo nextest run --all', cacheType: 'wrapper', cacheWrapper: 'sccache', cacheDirs: [], allowlistPaths: ['/Users/x/Library/Caches/Mozilla.sccache'] } }
     if (l === 'plan') return { tasks: [] }            // empty plan → no build, isolate the preflight
     return undefined
@@ -28,7 +28,7 @@ test('scout fullVerifyCmd drives the integration final gate (distinct from per-t
   let integPrompt = null
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'scout') return { verifyCmd: 'cargo test -p foo', fullVerifyCmd: 'cargo test --all', cacheType: 'none', cacheWrapper: null, cacheDirs: [], allowlistPaths: [] }
     if (l === 'scout-witness') return { applicable: true, redWitnessed: true, detail: 'broke prod, suite failed (good)' }
     if (l === 'scout-witness-clean') return { clean: true, detail: '' }   // F2: tree restored clean after the seed-break
@@ -54,7 +54,7 @@ test('caller verifyCmd wins (scout skipped); null discovery falls back to LLM-on
   // (a) caller override → scout must NOT run
   let scoutRan = false
   const a = makeAgent((p, o) => {
-    if (o.label === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (o.label === 'sp-version-check') return { installed: ['6.1.1'] }
     if (o.label === 'scout') { scoutRan = true; return { cacheType: 'none' } }
     if (o.label === 'plan') return { tasks: [] }
     return undefined
@@ -66,7 +66,7 @@ test('caller verifyCmd wins (scout skipped); null discovery falls back to LLM-on
   let verifyDispatched = false
   const b = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'scout') return { verifyCmd: null, cacheType: 'none', cacheDirs: [], allowlistPaths: [] }
     if (l === 'plan') return { tasks: [{ id: 't1', spec: 'x' }] }
     if (l.startsWith('capture-head:')) return { sha: 'a'.repeat(40) }
