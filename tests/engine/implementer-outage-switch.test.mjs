@@ -35,7 +35,7 @@ test('failed codex preflight switches implementer to claude (no per-task codex d
   const labels = calls.map(c => c.label || '')
   assert.ok(!labels.some(l => l.startsWith('codex:')), 'must NOT dispatch the codex per-task path after a failed preflight')
   assert.ok(labels.some(l => l.startsWith('claude:')), 'must implement the task via the claude path instead')
-  // Security: the preflight probe runs a real `codex exec` unsandboxed — the GitHub PAT scrub must be in it.
+  // Security: the preflight probe runs a real `codex exec` under the seatbelt — the GitHub PAT scrub must be in it.
   const probe = calls.find(c => c.label === 'preflight-codex')
   assert.ok(probe && /env -u GITHUB_PERSONAL_ACCESS_TOKEN/.test(probe.prompt), 'preflight codex probe must scrub the GitHub PAT (env -u GITHUB_PERSONAL_ACCESS_TOKEN)')
 })

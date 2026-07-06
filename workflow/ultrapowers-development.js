@@ -961,7 +961,7 @@ async function preflight() {
       // run to claude. A false downgrade only costs a pricier-but-safe run; the opposite (proceeding with a
       // broken codex) re-opens the RETRY+1-attempts + Opus-fallback burn this probe exists to prevent.
       // Null/errored probe (below) still proceeds with codex. Re-select codex to override.
-      log(`codex preflight FAILED: ${c.detail} — \`codex exec\` can't start a session (likely seatbelt/app-server, CC #10524; need permissions.allow "Bash(codex *)" + a true sandbox bypass); downgrading implementer to claude for THIS run (avoids ${RETRY + 1} wasted attempts + an Opus fallback per task)`)
+      log(`codex preflight FAILED: ${c.detail} — \`codex exec\` can't start a session (likely seatbelt/app-server, CC #10524; need permissions.allow "Bash(codex *)" + \`~/.codex\` in sandbox.filesystem.allowWrite so codex can write its sqlite state); downgrading implementer to claude for THIS run (avoids ${RETRY + 1} wasted attempts + an Opus fallback per task)`)
       IMPLEMENTER = 'claude'
       return { ok: true, detail: `codex unrunnable (${c.detail}); downgraded implementer to claude` }
     }

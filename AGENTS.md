@@ -70,10 +70,14 @@ Things that bite:
 ## Security, unattended code execution
 
 The harness writes files, runs `verifyCmd`, and commits, across subagents, with no human in the
-loop between gates. External implementers (`codex`/`gemini`) run **unsandboxed** and require
-`Bash(codex *)` allow + `sandbox.excludedCommands:['codex']` (`:316`). Any change touching
-execution, the sandbox carve-out, or worktree/branch isolation must keep `SECURITY.md` accurate,
-that doc is the threat model and is the most dangerous thing to let drift.
+loop between gates. External implementers (`codex`/`gemini`) run **under the CC Bash seatbelt** —
+`sandbox.excludedCommands:['codex']` is an inert retry-fallback, not a preemptive unsandbox (CC
+#10524), so codex needs `~/.codex` in `sandbox.filesystem.allowWrite` to start (it writes sqlite
+state there) plus a `Bash(codex *)` permission allow. That grant read-exposes `~/.codex/auth.json`;
+a `sandbox.filesystem.denyWrite` on `~/.codex/hooks.json`+`config.toml` closes the executable-config
+tamper vector (verified: writes to those two paths are denied at the seatbelt while `~/.codex` stays
+writable). Any change touching execution, the sandbox carve-out, or worktree/branch isolation must
+keep `SECURITY.md` accurate, that doc is the threat model and is the most dangerous thing to let drift.
 
 ## Attribution, non-negotiable
 
