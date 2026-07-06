@@ -864,7 +864,8 @@ async function cacheReach(info) {
   if (!info || info.type === 'none') return
   if (info.type === 'wrapper' || info.type === 'remote') {
     const allowNote = info.allowlist && info.allowlist.length
-      ? ` REQUIRES sandbox write-allowlist for: ${info.allowlist.join(', ')} (one-time supervised grant) — else builds run COLD.` : ''
+      ? ` REQUIRES sandbox write-allowlist for: ${info.allowlist.join(', ')} (one-time supervised grant) — else builds run COLD.` +
+        ` A client<->server cache daemon (e.g. sccache) ALSO needs SOCKET access the write-allowlist does NOT cover — under codex \`-s workspace-write\` set sandbox_workspace_write.network_access=true, else it fails "Operation not permitted" (loopback AND unix-socket both blocked; socketless paths — UDS/SCCACHE_NO_DAEMON/external server — don't help. codex-cli 0.137.0, verified 2026-07-06).` : ''
     if (!(repoDir && info.wrapper)) {
       // No linked worktree to configure, or no known wrapper → nothing to propagate (in-place
       // checkout already uses its own wrapper). Keep the wrapper, never blank it.
