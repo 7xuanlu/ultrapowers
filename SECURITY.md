@@ -19,7 +19,7 @@ across many disposable subagents, with human gates only at plan-approval and cri
   model, which would bypass the human gates). The hook removes only its own symlink slot and never
   touches a real file you may have placed there.
 
-## Self-configuring preflight (Scout / red-witness / cache-reach)
+## Self-configuring preflight (Scout / red-witness / cache-reach / codex-probe)
 
 When you give the harness only a goal (no `verifyCmd`), a one-time **Preflight** discovers how
 to verify and how the build cache works, by reading the repo. Two of those steps mutate the
@@ -47,6 +47,14 @@ working tree, and you should understand them:
   write-allowlist the harness logs a cold-build warning rather than disabling the wrapper. The
   allowlist grant is a **separate, supervised, one-time step** — the unattended run never edits
   `settings.json`.
+- **The codex preflight probe runs a real `codex exec` before any task** (only when
+  `implementer:"codex"`). `codex --version` can't detect that codex 0.137+'s app-server fails to
+  start under the sandbox, so the probe runs a trivial `codex exec` session (prompted to *reply
+  "OK" and run no commands*) to detect that up front and downgrade to the `claude` implementer if
+  codex is unrunnable. It carries the **same execution properties as the per-task codex dispatch**
+  and no more: run unsandboxed under the `codex` sandbox carve-out, `-s workspace-write`
+  (writes confined), and the GitHub PAT scrubbed from codex's environment
+  (`env -u GITHUB_PERSONAL_ACCESS_TOKEN`). It does not mutate the tree.
 
 ## Reporting
 Report privately, **do not open a public issue** for a sensitive vulnerability.
