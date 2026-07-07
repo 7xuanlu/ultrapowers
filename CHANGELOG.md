@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.3](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.4.2...ultrapowers-v0.4.3) (2026-07-07)
+
+
+### Bug Fixes
+
+* **engine:** codex-under-sandbox resilience — cacheReach warning + route around a dead external implementer ([fdd49b2](https://github.com/7xuanlu/ultrapowers/commit/fdd49b2b770f22638203e3a7e26351ad78d17eee))
+* **engine:** route around a dead external implementer instead of burning per-task quota ([0880aa6](https://github.com/7xuanlu/ultrapowers/commit/0880aa6da753b5af2648f63b95713bec37a0ead3))
+
 ## [0.4.2](https://github.com/7xuanlu/ultrapowers/compare/ultrapowers-v0.4.1...ultrapowers-v0.4.2) (2026-06-28)
 
 
