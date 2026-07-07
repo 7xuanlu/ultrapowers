@@ -110,8 +110,11 @@ const BUDGET_RESERVE = 50_000
 //   ~/.claude/plugins/cache/claude-plugins-official/superpowers/<new>/skills/{test-driven-development,subagent-driven-development}/
 // v6 reviewer source: subagent-driven-development/task-reviewer-prompt.md (merged spec+quality);
 // final review: requesting-code-review/code-reviewer.md. TDD + implementer Code-Org bodies are
-// byte-identical 5.1.0->6.0.0 (only an @import->link change in TDD's anti-patterns reference).
-const SP_VERSION = '6.0.0'
+// byte-identical 5.1.0->6.0.0 (only an @import->link change in TDD's anti-patterns reference), and
+// all four pin-governed sources (TDD SKILL.md, implementer-prompt.md, task-reviewer-prompt.md,
+// code-reviewer.md) are byte-identical 6.0.0->6.1.1 (verified 2026-07-06; 6.1.1's only skill change
+// was subagent-driven-development/SKILL.md's SDD-ledger path, which the engine does NOT embed).
+const SP_VERSION = '6.1.1'
 
 // Pluggable implementer + model routing (SDD: least-powerful-per-role).
 // 'codex'|'gemini' = cheap external CLI via its own CLI MCP tool + capable Claude fallback.
@@ -163,9 +166,12 @@ const LOOP_UNTIL_CLEAN = _args.loopUntilClean === true
 // is a mechanical relay + light sanity-check, NOT a judgment task — the real adversarial scrutiny is the
 // two downstream opus reviewers. So it runs on the cheapest tier, never opus. Without an explicit model it
 // would inherit the session default (opus) = a senior model hired to press a button. It's a PURE relay, so
-// haiku is enough — "pass the brief verbatim" + retry/fallback cover any fumble. Preflight probes are
-// likewise trivial (path compare) -> haiku. Bump to 'sonnet' only if false fallbacks start appearing.
-const CLI_WRAPPER_MODEL = 'haiku'
+// sonnet, not haiku: the relay doesn't just "pass the brief" — STEP 3 (:410) INDEPENDENTLY verifies
+// codex/gemini's diff (git diff/status + read files) and assigns the status that drives retry/fallback
+// control flow. That's diff-judgment, the same tier as the direct-impl path (IMPL_MODEL), and haiku is
+// under-tiered for it (a "blocked"->"done" misread mis-routes the loop). Preflight probes stay haiku
+// (they really are bounded: run a cmd, report ok/detail).
+const CLI_WRAPPER_MODEL = 'sonnet'
 
 // repoDir: the target repo. Workflow subagents inherit the MAIN SESSION's cwd, which is NOT
 // necessarily the repo being built (cross-repo run, OR a worktree created by /ultrapowers G1).
@@ -430,11 +436,16 @@ async function implement(task, issues, prior) {
       log(`${IMPLEMENTER} failed on ${task.id} (attempt ${a + 1}/${RETRY + 1})`)
     }
     fallbackStreak++
-    if (fallbackStreak >= OUTAGE_STREAK) { degraded = true; log(`DEGRADED: ${fallbackStreak} consecutive ${IMPLEMENTER} fallbacks — likely correlated outage`) }
+    const failedImpl = IMPLEMENTER   // capture BEFORE the switch, so the fallback prompt names the CLI that actually failed
+    if (fallbackStreak >= OUTAGE_STREAK) {
+      degraded = true
+      log(`DEGRADED: ${fallbackStreak} consecutive ${IMPLEMENTER} fallbacks — likely correlated outage; switching implementer to claude for the remaining tasks`)
+      IMPLEMENTER = 'claude'
+    }
     // B1 fix: fallback MUST use a capable model (opus), not inherit the session default.
     // SDD: "re-dispatch with a more capable model" (SKILL.md line 116).
     const c = await agentSafe(
-      `${IMPLEMENTER} could not complete this (transient failure or BLOCKED). Implement task ${task.id} YOURSELF (the more-capable fallback).\n\n${brief}\n\n` +
+      `${failedImpl} could not complete this (transient failure or BLOCKED). Implement task ${task.id} YOURSELF (the more-capable fallback).\n\n${brief}\n\n` +
       `status:"blocked" ONLY if it genuinely cannot be done as specified.`,
       { label: `claude-fallback:${task.id}`, phase: `task:${task.id}`, model: 'opus', schema: IMPL })
     return c ? { ...c, by: 'claude-fallback' } : { status: 'failed', by: 'none' }
@@ -864,7 +875,8 @@ async function cacheReach(info) {
   if (!info || info.type === 'none') return
   if (info.type === 'wrapper' || info.type === 'remote') {
     const allowNote = info.allowlist && info.allowlist.length
-      ? ` REQUIRES sandbox write-allowlist for: ${info.allowlist.join(', ')} (one-time supervised grant) — else builds run COLD.` : ''
+      ? ` REQUIRES sandbox write-allowlist for: ${info.allowlist.join(', ')} (one-time supervised grant) — else builds run COLD.` +
+        ` A client<->server cache daemon (e.g. sccache) ALSO needs SOCKET access the write-allowlist does NOT cover — under codex \`-s workspace-write\` set sandbox_workspace_write.network_access=true, else it fails "Operation not permitted" (loopback AND unix-socket both blocked; socketless paths — UDS/SCCACHE_NO_DAEMON/external server — don't help. codex-cli 0.137.0, verified 2026-07-06).` : ''
     if (!(repoDir && info.wrapper)) {
       // No linked worktree to configure, or no known wrapper → nothing to propagate (in-place
       // checkout already uses its own wrapper). Keep the wrapper, never blank it.
@@ -923,17 +935,36 @@ async function preflight() {
     return { ok: true, detail: g ? `gemini cwd ${g.detail} matches target` : 'gemini cwd probe errored — proceeding' }
   }
 
-  // codex runs as `codex exec` via Bash (NOT the MCP). Cheap probe: confirm the binary runs AND the command
-  // is permitted — if `Bash(codex *)` isn't allowlisted (or sandbox.excludedCommands lacks `codex`), this call
-  // hangs on a permission prompt / sandbox failure and surfaces HERE, not after a wasted task. Never abort:
-  // the per-task claude fallback covers a flaking codex.
+  // codex runs as `codex exec` via Bash (NOT the MCP). `codex --version` is NOT a sufficient probe:
+  // codex 0.137+ inits an in-process app-server on `exec` that fails under the harness seatbelt
+  // ("Operation not permitted", CC #10524) even when --version prints fine. Probe a REAL `codex exec`
+  // so the app-server path is exercised; if it can't start, DOWNGRADE to claude for the whole run
+  // (like the gemini branch above) rather than wasting RETRY+1 attempts + an Opus fallback per task.
   if (IMPLEMENTER === 'codex') {
+    const cd = repoDir || '.'
+    // Same watchdog as the per-task dispatch (:404): the Bash-tool timeout alone is unreliable in this
+    // harness (uncapped gate agents ran 55-117 min, see :488), and a wedged app-server would stall
+    // preflight. wrapWatchdog SIGKILLs codex's whole process group at the hard cap (exit 124).
+    const probeFile = '/tmp/up-codex-preflight.txt'
+    const probeCmd = wrapWatchdog(`env -u GITHUB_PERSONAL_ACCESS_TOKEN codex exec --cd ${cd} --ephemeral --skip-git-repo-check -s workspace-write -`, 55, probeFile)
     const c = await agentSafe(
-      `Confirm the Codex CLI is runnable and pre-approved (we use \`codex exec\`, NOT any MCP tool).\n` +
-      `Run with the Bash tool (timeout 30000): \`codex --version\`\n` +
-      `Return {ok:true, detail:"<version string>"} if it prints a version promptly; {ok:false, detail:"<error / it hung / permission denied>"} otherwise.`,
+      `Confirm the Codex CLI can actually START A SESSION (we use \`codex exec\`, NOT any MCP tool). ` +
+      `\`codex --version\` is insufficient — codex 0.137+ inits an app-server on \`exec\` that can fail under the sandbox even when --version works.\n` +
+      `STEP 1 — write this ONE line to ${probeFile} with the Write tool: Reply with exactly: OK. Do not run any commands.\n` +
+      `STEP 2 — run EXACTLY this with the Bash tool (set the Bash \`timeout\` to 90000 ms as a BACKSTOP; the command already self-enforces a 55s hard cap that SIGKILLs codex's process group, exit 124):\n` +
+      `    ${probeCmd}\n` +
+      `Return {ok:true, detail:"started"} if codex runs to completion (prints a normal reply). ` +
+      `Return {ok:false, detail:"<the error>"} if it prints "failed to initialize in-process app-server client", "Operation not permitted", exits 124 (the watchdog timeout), or exits non-zero.`,
       { label: 'preflight-codex', phase: 'Preflight', model: 'haiku', schema: PREFLIGHT })
-    if (c && c.ok === false) { log(`codex preflight WARNING: ${c.detail} — \`codex exec\` may be unrunnable/unpermitted (need permissions.allow "Bash(codex *)" + sandbox.excludedCommands ["codex"]); the run will fall back to claude per-task (check by:codex / fallbacks on the result)`); return { ok: true, detail: `codex preflight failed: ${c.detail}` } }
+    if (c && c.ok === false) {
+      // Deliberate fail-SAFE bias: any definitive probe failure (incl. a transient blip) downgrades THIS
+      // run to claude. A false downgrade only costs a pricier-but-safe run; the opposite (proceeding with a
+      // broken codex) re-opens the RETRY+1-attempts + Opus-fallback burn this probe exists to prevent.
+      // Null/errored probe (below) still proceeds with codex. Re-select codex to override.
+      log(`codex preflight FAILED: ${c.detail} — \`codex exec\` can't start a session (likely seatbelt/app-server, CC #10524; need permissions.allow "Bash(codex *)" + \`~/.codex\` in sandbox.filesystem.allowWrite so codex can write its sqlite state); downgrading implementer to claude for THIS run (avoids ${RETRY + 1} wasted attempts + an Opus fallback per task)`)
+      IMPLEMENTER = 'claude'
+      return { ok: true, detail: `codex unrunnable (${c.detail}); downgraded implementer to claude` }
+    }
     return { ok: true, detail: c ? `codex runnable: ${c.detail}` : 'codex preflight errored — proceeding (per-task fallback covers)' }
   }
   return { ok: true, detail: 'no external CLI' }
@@ -1099,7 +1130,7 @@ return {
   sp,                                                                            // {pinned, installed, drift} — embedded-prompt staleness vs installed superpowers
   repoDir:      repoDir || '(session cwd)',
   verifyCmd:    verifyCmd || null,
-  implementer:  IMPLEMENTER,                                                    // effective implementer (gemini may have been downgraded to claude in preflight)
+  implementer:  IMPLEMENTER,                                                    // effective implementer (codex/gemini may have been downgraded to claude — at preflight, or mid-run on an OUTAGE_STREAK)
   implModel:    isExternal() ? IMPLEMENTER : IMPL_MODEL,
   total:        done.length,
 }

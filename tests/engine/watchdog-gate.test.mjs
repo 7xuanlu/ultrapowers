@@ -12,7 +12,7 @@ test('verify / redWitness / integration gates run their command under the watchd
   let verifyPrompt = null, rwPrompt = null, integPrompt = null
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l.startsWith('capture-head:')) return { sha: 'b'.repeat(40) }
     if (l.startsWith('codex:')) return { status: 'done', files: ['src/x.js'], summary: 'ok' }
     if (l.startsWith('verify:')) { verifyPrompt = p; return { code: 0, tail: 'ok' } }

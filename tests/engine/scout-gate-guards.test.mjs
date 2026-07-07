@@ -11,7 +11,7 @@ test('F1: a discovered command is NOT promoted to the deterministic gate without
   let verifyDispatched = false, witnessDispatched = false
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'scout') return { verifyCmd: 'cargo check', fullVerifyCmd: 'cargo test', cacheType: 'none', cacheWrapper: null, cacheDirs: [], allowlistPaths: [] }
     if (l === 'scout-witness') { witnessDispatched = true; return { applicable: true, redWitnessed: true, detail: 'should not be reached without commit' } }
     if (l === 'plan') return { tasks: [{ id: 't1', spec: 'x' }] }
@@ -37,7 +37,7 @@ test('F2: run ABORTS if the tree is dirty after the red-witness seed/restore (un
   let verifyDispatched = false
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'scout') return { verifyCmd: 'cargo test', fullVerifyCmd: 'cargo test', cacheType: 'none', cacheWrapper: null, cacheDirs: [], allowlistPaths: [] }
     if (l === 'scout-witness') return { applicable: true, redWitnessed: true, detail: 'broke prod, suite failed (good)' }
     if (l === 'scout-witness-clean') return { clean: false, detail: 'src/lib.rs still modified — restore failed' }
@@ -63,7 +63,7 @@ test('F2: a clean tree after the red-witness proceeds (gate adopted, no abort)',
   let verifyDispatched = false
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'scout') return { verifyCmd: 'cargo test', fullVerifyCmd: 'cargo test', cacheType: 'none', cacheWrapper: null, cacheDirs: [], allowlistPaths: [] }
     if (l === 'scout-witness') return { applicable: true, redWitnessed: true, detail: 'broke prod, suite failed (good)' }
     if (l === 'scout-witness-clean') return { clean: true, detail: '' }

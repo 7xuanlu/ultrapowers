@@ -11,7 +11,7 @@ test('a discovered command that stays GREEN under a seeded break is rejected (va
   let verifyDispatched = false
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'scout') return { verifyCmd: 'true', fullVerifyCmd: 'true', cacheType: 'none', cacheWrapper: null, cacheDirs: [], allowlistPaths: [] }
     if (l === 'scout-witness') return { applicable: true, redWitnessed: false, detail: 'broke prod, suite still passed' }
     if (l === 'plan') return { tasks: [{ id: 't1', spec: 'x' }] }

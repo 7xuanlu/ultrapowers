@@ -10,7 +10,7 @@ test('descope guard restores an unauthorized pre-existing-file deletion and re-d
   let guardCalls = 0, restoreCalled = false, correctiveMsg = null
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l.startsWith('capture-head:')) return { sha: 'b'.repeat(40) }
     if (l.startsWith('claude:')) { if (/deleted pre-existing file/i.test(p)) correctiveMsg = p; return { status: 'done', files: ['src/x.js'], summary: 'ok' } }
     if (l.startsWith('verify:')) return { code: 0, tail: 'ok' }
@@ -34,7 +34,7 @@ test('descope guard allows a deletion the task spec authorizes', async () => {
   let restoreCalled = false
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l.startsWith('capture-head:')) return { sha: 'b'.repeat(40) }
     if (l.startsWith('claude:')) return { status: 'done', files: ['src/x.js'], summary: 'ok' }
     if (l.startsWith('verify:')) return { code: 0, tail: 'ok' }
@@ -58,7 +58,7 @@ test('descope guard diffs baseSha vs the working tree (catches uncommitted delet
   let guardPrompt = null
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l.startsWith('capture-head:')) return { sha: 'b'.repeat(40) }
     if (l.startsWith('claude:')) return { status: 'done', files: ['src/x.js'], summary: 'ok' }
     if (l.startsWith('verify:')) return { code: 0, tail: 'ok' }
@@ -85,7 +85,7 @@ test('descope guard does NOT authorize a deletion that only collides on basename
   let restoreCalled = false
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l.startsWith('capture-head:')) return { sha: 'b'.repeat(40) }
     if (l.startsWith('claude:')) return { status: 'done', files: ['src/x.js'], summary: 'ok' }
     if (l.startsWith('verify:')) return { code: 0, tail: 'ok' }

@@ -6,7 +6,7 @@ import { runEngine, makeAgent } from './harness.mjs'
 function driver(scoutReturn, capture) {
   return makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l === 'scout') return scoutReturn
     if (l === 'scout-witness') return { applicable: true, redWitnessed: true, detail: 'ok' }
     if (l === 'cache-reach') { capture.prompt = p; capture.model = o.model; return { ok: true } }

@@ -6,7 +6,7 @@ import { runEngine, makeAgent } from './harness.mjs'
 // (label review-task:*), not a separate spec + quality pair.
 function baseResponder(prompt, opts) {
   const l = opts.label || ''
-  if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+  if (l === 'sp-version-check') return { installed: ['6.1.1'] }
   if (l.startsWith('capture-head:')) return { sha: 'aaaaaaa0000000000000000000000000000000a' }
   if (l.startsWith('claude:')) return { status: 'done', files: ['src/x.js'], summary: 'did it' }
   if (l.startsWith('verify:')) return { code: 0, tail: 'ok' }

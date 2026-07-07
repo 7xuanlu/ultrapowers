@@ -10,7 +10,7 @@ test('codex implementer scrubs GITHUB_PERSONAL_ACCESS_TOKEN from its child-shell
   let codexPrompt = null
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l.startsWith('capture-head:')) return { sha: 'b'.repeat(40) }
     if (l.startsWith('codex:')) { codexPrompt = p; return { status: 'done', files: ['src/x.js'], summary: 'ok' } }
     if (l.startsWith('verify:')) return { code: 0, tail: 'ok' }

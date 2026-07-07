@@ -7,7 +7,7 @@ test('specVerdict=fail with empty findings never marks the task ok (H1)', async 
   let reviewCount = 0
   const { agent } = makeAgent((p, o) => {
     const l = o.label || ''
-    if (l === 'sp-version-check') return { installed: ['6.0.0'] }
+    if (l === 'sp-version-check') return { installed: ['6.1.1'] }
     if (l.startsWith('capture-head:')) return { sha: 'a'.repeat(40) }
     if (l.startsWith('claude:')) return { status: 'done', files: ['src/x.js'], summary: 'did it' }
     if (l.startsWith('verify:')) return { code: 0, tail: 'ok' }

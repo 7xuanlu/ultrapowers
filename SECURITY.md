@@ -19,7 +19,7 @@ across many disposable subagents, with human gates only at plan-approval and cri
   model, which would bypass the human gates). The hook removes only its own symlink slot and never
   touches a real file you may have placed there.
 
-## Self-configuring preflight (Scout / red-witness / cache-reach)
+## Self-configuring preflight (Scout / red-witness / cache-reach / codex-probe)
 
 When you give the harness only a goal (no `verifyCmd`), a one-time **Preflight** discovers how
 to verify and how the build cache works, by reading the repo. Two of those steps mutate the
@@ -47,6 +47,38 @@ working tree, and you should understand them:
   write-allowlist the harness logs a cold-build warning rather than disabling the wrapper. The
   allowlist grant is a **separate, supervised, one-time step** — the unattended run never edits
   `settings.json`.
+- **The codex preflight probe runs a real `codex exec` before any task** (only when
+  `implementer:"codex"`). `codex --version` can't detect that codex 0.137+'s app-server fails to
+  start under the sandbox, so the probe runs a trivial `codex exec` session (prompted to *reply
+  "OK" and run no commands*) to detect that up front and downgrade to the `claude` implementer if
+  codex is unrunnable. It carries the **same execution properties as the per-task codex dispatch**
+  and no more: it runs **under the CC Bash seatbelt** (see *The `codex` implementer runs sandboxed*
+  below), codex's own `-s workspace-write` confines the model's writes to the workspace, and the
+  GitHub PAT is scrubbed from codex's environment (`env -u GITHUB_PERSONAL_ACCESS_TOKEN`). It does
+  not mutate the tree.
+
+## The `codex` implementer runs sandboxed — the `~/.codex` grant is the real tradeoff
+
+The `sandbox.excludedCommands` entry for `codex` does **not** run codex unsandboxed. It is a
+*retry-after-a-recognized-sandbox-failure* fallback, not a preemptive bypass (CC #10524): codex
+exits non-zero with its **own** error, Claude Code doesn't classify that as a sandbox violation, so
+the unsandboxed retry never fires. Every `codex` command runs **under the CC Bash seatbelt**.
+
+Codex must write sqlite session state under `~/.codex` to start; the seatbelt denies that unless
+`~/.codex` is in `sandbox.filesystem.allowWrite`. Without the grant codex dies (`attempt to write a
+readonly database`) and the preflight probe downgrades the run to `claude`. Adding the grant is a
+**supervised, one-time edit to your global `~/.claude/settings.json`** — the unattended harness
+never makes it.
+
+The grant's cost, and the mitigation in place:
+
+| What the `~/.codex` write-grant exposes | Status |
+|---|---|
+| `auth.json` (ChatGPT OAuth token) becomes **readable** by unattended subagents | Inherent — codex must read it to authenticate. Treat the token as reachable by the harness and rotate it if you suspect compromise. The sandbox network allowlist limits egress but was observed permeable to codex's own endpoints, so don't rely on it as a hard exfil barrier. |
+| `hooks.json` / `config.toml` are **executable config** — writing them = arbitrary command execution on codex's next launch | **Blocked.** `sandbox.filesystem.denyWrite` lists both paths; deny-within-allow beats the `~/.codex` allow-grant at the seatbelt. Verified live: `touch` on either → `Operation not permitted`, while `~/.codex` itself stays writable. |
+
+If you don't run the `codex` implementer, drop `~/.codex` from `allowWrite` and this risk goes to
+zero.
 
 ## Reporting
 Report privately, **do not open a public issue** for a sensitive vulnerability.
